@@ -54,3 +54,18 @@ uv run python scripts/verify_speech.py --engine whisper --download
 ```
 
 TTS 모델은 `.models/qwen3-tts-1.7b-8bit/`에 유지합니다. 선택 사항인 ASR 검증 모델은 각각 약 1.01 GB, 1.62 GB이며 일반 문서 변환에는 필요하지 않습니다. 복잡한 다단 문서·수식·모든 OCR 입력과 사용자 개인 문서는 이번 실행에서 검증하지 않았습니다.
+
+## 사용 가이드 예제 검증
+
+2026-09-10, 위 Mac의 설치된 환경에서 [모델 사용 가이드](model-usage.md)의 Python 예제와 오프라인 CLI 예제를 실행했습니다.
+
+| 확인 항목 | 결과 |
+| --- | --- |
+| Python 예제 | 문서의 코드 블록을 그대로 실행. `samples/korean.txt`의 3개 구간을 실제 모델로 새로 생성, 재사용 0개, 처리 약 21.83초 |
+| 오프라인 CLI 예제 | 같은 본문과 설정의 저장 구간 3개를 재사용, 처리 약 0.55초 |
+| 두 MP3의 형식 | 각각 약 37.37초, MP3 / 24 kHz / 모노 / 128 kbps |
+| 파일 검사 | ffprobe로 형식 확인, ffmpeg로 두 MP3 전체 디코딩 성공 |
+| 문서 정적 검사 | HTML 노드 없음, 상대 링크·목차 앵커, Bash·Zsh 문법, Python 구문, CLI 인자를 실제 파서와 대조 |
+| 환경 | `doctor`의 Metal·모델 파일 OK, `scripts/ai-env.py check` 통과 |
+
+결과는 로컬 `output/model-guide/python.mp3`, `output/model-guide/offline.mp3`, `output/model-guide/documentation-verification.json`에 남겼습니다. 모델 로딩 중 Transformers의 모델 타입 경고가 나왔지만 변환은 정상 종료했습니다. 이번 확인은 설치된 환경에서의 예제 실행이며, 새 Mac에서 Homebrew부터 다시 설치하거나 화자·말투 조합 전체를 청취 평가한 것은 아닙니다. 앱 소스 변경 없이 사용 문서를 보완한 작업이므로 기존 전체 테스트를 다시 실행하지 않았습니다.
