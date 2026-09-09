@@ -1,0 +1,40 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Local credentials and environment values (examples remain shareable)
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.*.sample
+
+# Personal agent overrides and runtime state
+CLAUDE.local.md
+AGENTS.override.md
+.claude/settings.local.json
+.claude/worktrees/
+.claude/sessions/
+.claude/plans/
+.codex/auth.json
+.codex/history.jsonl
+.codex/sessions/
+.codex/log/
+
+# Local verification artifacts
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local models, documents, generated audio and resumable jobs
+.models/
+.doc2audio/
+output/
+input/
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/

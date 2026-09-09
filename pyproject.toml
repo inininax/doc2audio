@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "doc2audio"
+version = "0.1.0"
+description = "Apple Silicon에서 PDF와 Word 문서를 한국어 MP3로 읽는 로컬 도구"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "mlx-audio==0.5.3",
+  "soundfile>=0.14,<0.15",
+  "pymupdf>=1.28.2,<1.29",
+  "python-docx>=1.2,<1.3",
+  "pyobjc-framework-Vision>=12.2,<13; sys_platform == 'darwin'",
+]
+
+[project.scripts]
+doc2audio = "doc2audio.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=9.1,<10", "ruff>=0.16,<0.17"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: real platform tools and document extraction"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+# Preserve the independently managed AI-environment bootstrap script.
+extend-exclude = ["scripts/ai-env.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
