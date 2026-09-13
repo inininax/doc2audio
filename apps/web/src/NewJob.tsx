@@ -14,10 +14,11 @@ import {
 } from "@mui/material";
 import {
   ArrowForward,
-  CloudUploadOutlined,
+  FolderOpenOutlined,
   GraphicEq,
   InsertDriveFileOutlined,
   Close,
+  VerifiedUserOutlined,
 } from "@mui/icons-material";
 import {
   browserMode,
@@ -28,15 +29,20 @@ import {
   type VoiceOptions,
 } from "./api";
 import OptionsForm from "./OptionsForm";
+import RuntimeHelp from "./RuntimeHelp";
 
 export default function NewJob({
   models,
   onCreated,
   onModels,
+  onHelp,
+  active = true,
 }: {
   models: Model[];
   onCreated: (job: Job) => void;
   onModels: () => void;
+  onHelp: () => void;
+  active?: boolean;
 }) {
   const id = useId();
   const [modelId, setModelId] = useState("");
@@ -158,7 +164,7 @@ export default function NewJob({
           >
             <Tab
               disabled={busy}
-              label="문서 업로드"
+              label="파일 선택"
               id={id + "-file-tab"}
               aria-controls={id + "-file-panel"}
             />
@@ -238,7 +244,7 @@ export default function NewJob({
                     sx={{ color: "primary.main", fontSize: 32 }}
                   />
                 ) : (
-                  <CloudUploadOutlined
+                  <FolderOpenOutlined
                     sx={{ color: "primary.main", fontSize: 32 }}
                   />
                 )}
@@ -376,6 +382,48 @@ export default function NewJob({
               slotProps={{ htmlInput: { maxLength: 1000000 } }}
             />
           </Box>
+          <Box
+            sx={{
+              mt: 2,
+              p: 1.5,
+              borderRadius: 1.5,
+              bgcolor: "#f0f9f4",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 1,
+            }}
+          >
+            <VerifiedUserOutlined
+              sx={{ color: "success.dark", fontSize: 19, mt: 0.25 }}
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                문서와 음성을 외부 서버로 보내지 않습니다.
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {browserMode
+                  ? "선택한 파일과 입력한 글은 이 PC의 브라우저 안에서 처리합니다."
+                  : "변환을 시작하면 이 PC의 Python 서버로 문서를 전달해 처리합니다."}
+              </Typography>
+              <Button
+                href="#help"
+                onClick={(event) => {
+                  event.preventDefault();
+                  onHelp();
+                }}
+                endIcon={<ArrowForward />}
+                size="small"
+                sx={{
+                  display: "flex",
+                  width: "fit-content",
+                  minHeight: 48,
+                  px: 0,
+                }}
+              >
+                처리·저장 방식 알아보기
+              </Button>
+            </Box>
+          </Box>
           <TextField
             fullWidth
             id={id + "-title"}
@@ -476,6 +524,7 @@ export default function NewJob({
                   모델을 먼저 다운로드하세요. 작성 중인 내용은 유지됩니다.
                 </Alert>
               )}
+              <RuntimeHelp compact />
               <Box
                 sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2.5 }}
               >
@@ -484,6 +533,7 @@ export default function NewJob({
                   value={voice || defaults(model)}
                   onChange={setVoice}
                   disabled={busy}
+                  active={active}
                 />
               </Box>
               <Button

@@ -1,0 +1,849 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "text": "안녕하세요. 오늘도 당신의 문서를 자연스러운 목소리로 읽어 드릴게요.",
+  "seed": 42,
+  "samples": [
+    {
+      "model_id": "supertonic-3",
+      "speaker": "F1",
+      "url": "voice-samples/supertonic-3/F1.mp3",
+      "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+      "options": {
+        "speaker": "F1",
+        "language": "ko",
+        "total_steps": 8,
+        "speech_speed": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 120
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.159,
+      "bytes": 83814,
+      "sha256": "89bb1e67ec4151a0ec23b08c29883e2af560fe8c94c5931d625b0646fefd8eed",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.71,
+      "peak": 0.53797,
+      "leading_silence_seconds": 0.123,
+      "trailing_silence_seconds": 0.182
+    },
+    {
+      "model_id": "supertonic-3",
+      "speaker": "F2",
+      "url": "voice-samples/supertonic-3/F2.mp3",
+      "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+      "options": {
+        "speaker": "F2",
+        "language": "ko",
+        "total_steps": 8,
+        "speech_speed": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 120
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 4.642,
+      "bytes": 75750,
+      "sha256": "0507e01efe5ef668d01206c9efd94c7387a293774be7987b9383e5d18bb2ec66",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.97,
+      "peak": 0.5528,
+      "leading_silence_seconds": 0.143,
+      "trailing_silence_seconds": 0.173
+    },
+    {
+      "model_id": "supertonic-3",
+      "speaker": "F3",
+      "url": "voice-samples/supertonic-3/F3.mp3",
+      "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+      "options": {
+        "speaker": "F3",
+        "language": "ko",
+        "total_steps": 8,
+        "speech_speed": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 120
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.594,
+      "bytes": 91110,
+      "sha256": "0cc166e9b6f77f99aa4a38b36ceb8f2266c6d46988d99a2950a69e5c2e535482",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -19.19,
+      "peak": 0.68866,
+      "leading_silence_seconds": 0.121,
+      "trailing_silence_seconds": 0.254
+    },
+    {
+      "model_id": "supertonic-3",
+      "speaker": "F4",
+      "url": "voice-samples/supertonic-3/F4.mp3",
+      "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+      "options": {
+        "speaker": "F4",
+        "language": "ko",
+        "total_steps": 8,
+        "speech_speed": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 120
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 4.575,
+      "bytes": 74598,
+      "sha256": "510a90650e2fcdf85fc95839b2fb16d7753afcb7b812e2a70cfe95f00497f25d",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.34,
+      "peak": 0.55831,
+      "leading_silence_seconds": 0.117,
+      "trailing_silence_seconds": 0.33
+    },
+    {
+      "model_id": "supertonic-3",
+      "speaker": "F5",
+      "url": "voice-samples/supertonic-3/F5.mp3",
+      "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+      "options": {
+        "speaker": "F5",
+        "language": "ko",
+        "total_steps": 8,
+        "speech_speed": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 120
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.321,
+      "bytes": 86502,
+      "sha256": "08d1ac7e201b0ebe51674bcbd5b211a551723ac1933ba7db869bb8296dd45e61",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.57,
+      "peak": 0.47119,
+      "leading_silence_seconds": 0.119,
+      "trailing_silence_seconds": 0.364
+    },
+    {
+      "model_id": "supertonic-3",
+      "speaker": "M1",
+      "url": "voice-samples/supertonic-3/M1.mp3",
+      "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+      "options": {
+        "speaker": "M1",
+        "language": "ko",
+        "total_steps": 8,
+        "speech_speed": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 120
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.207,
+      "bytes": 84582,
+      "sha256": "d6c677fc16e49c29dd5c08318ecc6cdc12de404c917fb0c7f51e8f441c17615f",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -19.27,
+      "peak": 0.79971,
+      "leading_silence_seconds": 0.126,
+      "trailing_silence_seconds": 0.16
+    },
+    {
+      "model_id": "supertonic-3",
+      "speaker": "M2",
+      "url": "voice-samples/supertonic-3/M2.mp3",
+      "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+      "options": {
+        "speaker": "M2",
+        "language": "ko",
+        "total_steps": 8,
+        "speech_speed": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 120
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.033,
+      "bytes": 81894,
+      "sha256": "9db7bb994ee1ff1b3f178b8ca994e6ffa69a6048721e96b1213b6075f0cd3b34",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.75,
+      "peak": 0.75143,
+      "leading_silence_seconds": 0.115,
+      "trailing_silence_seconds": 0.141
+    },
+    {
+      "model_id": "supertonic-3",
+      "speaker": "M3",
+      "url": "voice-samples/supertonic-3/M3.mp3",
+      "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+      "options": {
+        "speaker": "M3",
+        "language": "ko",
+        "total_steps": 8,
+        "speech_speed": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 120
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 4.184,
+      "bytes": 68454,
+      "sha256": "dae95156d5e578154b677ba62fbb3f6990de45fbe6d9d011d115c0d3da813d04",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.6,
+      "peak": 0.70343,
+      "leading_silence_seconds": 0.121,
+      "trailing_silence_seconds": 0.241
+    },
+    {
+      "model_id": "supertonic-3",
+      "speaker": "M4",
+      "url": "voice-samples/supertonic-3/M4.mp3",
+      "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+      "options": {
+        "speaker": "M4",
+        "language": "ko",
+        "total_steps": 8,
+        "speech_speed": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 120
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.064,
+      "bytes": 82278,
+      "sha256": "0a726177330cb548e3a382446bad3a427eedd9dfb655f7058221e3151b6514e1",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.17,
+      "peak": 0.59527,
+      "leading_silence_seconds": 0.127,
+      "trailing_silence_seconds": 0.265
+    },
+    {
+      "model_id": "supertonic-3",
+      "speaker": "M5",
+      "url": "voice-samples/supertonic-3/M5.mp3",
+      "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+      "options": {
+        "speaker": "M5",
+        "language": "ko",
+        "total_steps": 8,
+        "speech_speed": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 120
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.48,
+      "bytes": 89190,
+      "sha256": "7c044c1412a0146e5c454b495951d2793be50ba453e584568cd680adb46131c0",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.41,
+      "peak": 0.67314,
+      "leading_silence_seconds": 0.118,
+      "trailing_silence_seconds": 0.255
+    },
+    {
+      "model_id": "qwen3-1.7b",
+      "speaker": "Sohee",
+      "url": "voice-samples/qwen3-1.7b/Sohee.mp3",
+      "revision": "41d3337e8b7f2843a75841595fc14e4b9a7a4b96",
+      "options": {
+        "speaker": "Sohee",
+        "language": "Korean",
+        "instruct": "차분하고 따뜻한 한국어로 또렷하게 읽어 주세요.",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.419,
+      "bytes": 88041,
+      "sha256": "ce3e13a117c96a6ae003abd038259031484e4909af26c6a945cb64feb151a9a2",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -19.67,
+      "peak": 0.77482,
+      "leading_silence_seconds": 0.07,
+      "trailing_silence_seconds": 0.033
+    },
+    {
+      "model_id": "qwen3-1.7b",
+      "speaker": "Serena",
+      "url": "voice-samples/qwen3-1.7b/Serena.mp3",
+      "revision": "41d3337e8b7f2843a75841595fc14e4b9a7a4b96",
+      "options": {
+        "speaker": "Serena",
+        "language": "Korean",
+        "instruct": "차분하고 따뜻한 한국어로 또렷하게 읽어 주세요.",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 4.859,
+      "bytes": 79210,
+      "sha256": "36248a9fccd781e4d1baace7e8156c6961d78404818ea38370f512e7e4e2979f",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.43,
+      "peak": 0.7586,
+      "leading_silence_seconds": 0.077,
+      "trailing_silence_seconds": 0.043
+    },
+    {
+      "model_id": "qwen3-1.7b",
+      "speaker": "Vivian",
+      "url": "voice-samples/qwen3-1.7b/Vivian.mp3",
+      "revision": "41d3337e8b7f2843a75841595fc14e4b9a7a4b96",
+      "options": {
+        "speaker": "Vivian",
+        "language": "Korean",
+        "instruct": "차분하고 따뜻한 한국어로 또렷하게 읽어 주세요.",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 7.179,
+      "bytes": 116458,
+      "sha256": "002e64505d620bdc14aa18aaebf8c0a6b7189e8a18d23f02102e9548a5a7ab7e",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.26,
+      "peak": 0.62759,
+      "leading_silence_seconds": 0.066,
+      "trailing_silence_seconds": 0.059
+    },
+    {
+      "model_id": "qwen3-1.7b",
+      "speaker": "Uncle_Fu",
+      "url": "voice-samples/qwen3-1.7b/Uncle_Fu.mp3",
+      "revision": "41d3337e8b7f2843a75841595fc14e4b9a7a4b96",
+      "options": {
+        "speaker": "Uncle_Fu",
+        "language": "Korean",
+        "instruct": "차분하고 따뜻한 한국어로 또렷하게 읽어 주세요.",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.836,
+      "bytes": 94956,
+      "sha256": "923d49853b13f1cb54fe9ef14b1b7793a139a5e77b79858cc761fd060ecc764a",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -17.93,
+      "peak": 0.70889,
+      "leading_silence_seconds": 0.063,
+      "trailing_silence_seconds": 0.026
+    },
+    {
+      "model_id": "qwen3-1.7b",
+      "speaker": "Ryan",
+      "url": "voice-samples/qwen3-1.7b/Ryan.mp3",
+      "revision": "41d3337e8b7f2843a75841595fc14e4b9a7a4b96",
+      "options": {
+        "speaker": "Ryan",
+        "language": "Korean",
+        "instruct": "차분하고 따뜻한 한국어로 또렷하게 읽어 주세요.",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.563,
+      "bytes": 90344,
+      "sha256": "b2a487efd031fcd6dec7a0a0c7fbb2adce766ce8b57f38b5efcfb9a0cc9ac65a",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -17.77,
+      "peak": 0.73372,
+      "leading_silence_seconds": 0.071,
+      "trailing_silence_seconds": 0.039
+    },
+    {
+      "model_id": "qwen3-1.7b",
+      "speaker": "Aiden",
+      "url": "voice-samples/qwen3-1.7b/Aiden.mp3",
+      "revision": "41d3337e8b7f2843a75841595fc14e4b9a7a4b96",
+      "options": {
+        "speaker": "Aiden",
+        "language": "Korean",
+        "instruct": "차분하고 따뜻한 한국어로 또렷하게 읽어 주세요.",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.112,
+      "bytes": 83049,
+      "sha256": "4a13946562384217da1c0818b704fc13cb8d5557a4a8e985825af659eb8925f8",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.55,
+      "peak": 0.60183,
+      "leading_silence_seconds": 0.075,
+      "trailing_silence_seconds": 0.023
+    },
+    {
+      "model_id": "qwen3-1.7b",
+      "speaker": "Ono_Anna",
+      "url": "voice-samples/qwen3-1.7b/Ono_Anna.mp3",
+      "revision": "41d3337e8b7f2843a75841595fc14e4b9a7a4b96",
+      "options": {
+        "speaker": "Ono_Anna",
+        "language": "Korean",
+        "instruct": "차분하고 따뜻한 한국어로 또렷하게 읽어 주세요.",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42,
+        7961
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 6.619,
+      "bytes": 107244,
+      "sha256": "371c13dbbde2efeddaacf580924fcf8e8dfbb2a968a7b7184eca06ee4e34d960",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.47,
+      "peak": 0.79608,
+      "leading_silence_seconds": 0.063,
+      "trailing_silence_seconds": 0.023
+    },
+    {
+      "model_id": "qwen3-1.7b",
+      "speaker": "Eric",
+      "url": "voice-samples/qwen3-1.7b/Eric.mp3",
+      "revision": "41d3337e8b7f2843a75841595fc14e4b9a7a4b96",
+      "options": {
+        "speaker": "Eric",
+        "language": "Korean",
+        "instruct": "차분하고 따뜻한 한국어로 또렷하게 읽어 주세요.",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 6.945,
+      "bytes": 112616,
+      "sha256": "e59ffa6e22efb37b6a3ffbedf463354ccc807fd0de7da7fe24511c98f5142583",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.34,
+      "peak": 0.75461,
+      "leading_silence_seconds": 0.063,
+      "trailing_silence_seconds": 0.022
+    },
+    {
+      "model_id": "qwen3-1.7b",
+      "speaker": "Dylan",
+      "url": "voice-samples/qwen3-1.7b/Dylan.mp3",
+      "revision": "41d3337e8b7f2843a75841595fc14e4b9a7a4b96",
+      "options": {
+        "speaker": "Dylan",
+        "language": "Korean",
+        "instruct": "차분하고 따뜻한 한국어로 또렷하게 읽어 주세요.",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 6.312,
+      "bytes": 102249,
+      "sha256": "c3ec2bf29b0cd8f8f1b2c1cc7097c67ea92eae8dcd2967035e9c0c4c0eb9b717",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.96,
+      "peak": 0.7326,
+      "leading_silence_seconds": 0.074,
+      "trailing_silence_seconds": 0.021
+    },
+    {
+      "model_id": "qwen3-0.6b",
+      "speaker": "Sohee",
+      "url": "voice-samples/qwen3-0.6b/Sohee.mp3",
+      "revision": "049ef77fe8816b536193c0c25f9a214d17921282",
+      "options": {
+        "speaker": "Sohee",
+        "language": "Korean",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 6.796,
+      "bytes": 110313,
+      "sha256": "9373d3d904e2b90977d9d756346e6b716b0a3f1bd4f9282b0e164fec3669bd59",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -19.75,
+      "peak": 0.66202,
+      "leading_silence_seconds": 0.116,
+      "trailing_silence_seconds": 0.135
+    },
+    {
+      "model_id": "qwen3-0.6b",
+      "speaker": "Serena",
+      "url": "voice-samples/qwen3-0.6b/Serena.mp3",
+      "revision": "049ef77fe8816b536193c0c25f9a214d17921282",
+      "options": {
+        "speaker": "Serena",
+        "language": "Korean",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 6.631,
+      "bytes": 107626,
+      "sha256": "797a3f018bc3266f371f01c178016628815ef9bb01cdfd08b2e8e197b506e82d",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.99,
+      "peak": 0.79968,
+      "leading_silence_seconds": 0.099,
+      "trailing_silence_seconds": 0.149
+    },
+    {
+      "model_id": "qwen3-0.6b",
+      "speaker": "Vivian",
+      "url": "voice-samples/qwen3-0.6b/Vivian.mp3",
+      "revision": "049ef77fe8816b536193c0c25f9a214d17921282",
+      "options": {
+        "speaker": "Vivian",
+        "language": "Korean",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.333,
+      "bytes": 86890,
+      "sha256": "1c7b469328a2cf4af70f77e1e68bb5cd7d4389bfc05add02f7de59a8e6a60486",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.79,
+      "peak": 0.75124,
+      "leading_silence_seconds": 0.124,
+      "trailing_silence_seconds": 0.143
+    },
+    {
+      "model_id": "qwen3-0.6b",
+      "speaker": "Uncle_Fu",
+      "url": "voice-samples/qwen3-0.6b/Uncle_Fu.mp3",
+      "revision": "049ef77fe8816b536193c0c25f9a214d17921282",
+      "options": {
+        "speaker": "Uncle_Fu",
+        "language": "Korean",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.222,
+      "bytes": 84972,
+      "sha256": "00b62728d93548bc094ef02ca32cfe0f9d3f4fbca51873fa8cdba8bbe4020d2b",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.48,
+      "peak": 0.78678,
+      "leading_silence_seconds": 0.103,
+      "trailing_silence_seconds": 0.124
+    },
+    {
+      "model_id": "qwen3-0.6b",
+      "speaker": "Ryan",
+      "url": "voice-samples/qwen3-0.6b/Ryan.mp3",
+      "revision": "049ef77fe8816b536193c0c25f9a214d17921282",
+      "options": {
+        "speaker": "Ryan",
+        "language": "Korean",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42,
+        7961
+      ],
+      "trimmed_edge_seconds": 0.913,
+      "seconds": 6.698,
+      "bytes": 108776,
+      "sha256": "0efce2add2ec4fc5e3a058f77a9a2e4deb0ea89d758ab1ecc0c4c7292a61de8e",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -19.34,
+      "peak": 0.79972,
+      "leading_silence_seconds": 0.111,
+      "trailing_silence_seconds": 0.206
+    },
+    {
+      "model_id": "qwen3-0.6b",
+      "speaker": "Aiden",
+      "url": "voice-samples/qwen3-0.6b/Aiden.mp3",
+      "revision": "049ef77fe8816b536193c0c25f9a214d17921282",
+      "options": {
+        "speaker": "Aiden",
+        "language": "Korean",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 6.141,
+      "bytes": 99561,
+      "sha256": "080fc19d48f92bf5d99e373e6f2eafd845017905037eba0e4de5e2718577069e",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.75,
+      "peak": 0.79786,
+      "leading_silence_seconds": 0.119,
+      "trailing_silence_seconds": 0.12
+    },
+    {
+      "model_id": "qwen3-0.6b",
+      "speaker": "Ono_Anna",
+      "url": "voice-samples/qwen3-0.6b/Ono_Anna.mp3",
+      "revision": "049ef77fe8816b536193c0c25f9a214d17921282",
+      "options": {
+        "speaker": "Ono_Anna",
+        "language": "Korean",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 6.389,
+      "bytes": 103788,
+      "sha256": "9c1883c6e4f976e693c3c97b0ee0641213b5680ade42a9d3291ab0f877ab2b36",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -19.08,
+      "peak": 0.6697,
+      "leading_silence_seconds": 0.31,
+      "trailing_silence_seconds": 0.211
+    },
+    {
+      "model_id": "qwen3-0.6b",
+      "speaker": "Eric",
+      "url": "voice-samples/qwen3-0.6b/Eric.mp3",
+      "revision": "049ef77fe8816b536193c0c25f9a214d17921282",
+      "options": {
+        "speaker": "Eric",
+        "language": "Korean",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 6.794,
+      "bytes": 110312,
+      "sha256": "3ba0b4a04503cf734a3495d2370890d8d36d5ede02b6416901922a731fdbaece",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -18.76,
+      "peak": 0.79968,
+      "leading_silence_seconds": 0.108,
+      "trailing_silence_seconds": 0.129
+    },
+    {
+      "model_id": "qwen3-0.6b",
+      "speaker": "Dylan",
+      "url": "voice-samples/qwen3-0.6b/Dylan.mp3",
+      "revision": "049ef77fe8816b536193c0c25f9a214d17921282",
+      "options": {
+        "speaker": "Dylan",
+        "language": "Korean",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.05,
+        "speed": 1,
+        "pause": 0.3,
+        "seed": 42,
+        "chunk_chars": 240
+      },
+      "attempt_seeds": [
+        42
+      ],
+      "trimmed_edge_seconds": 0.0,
+      "seconds": 5.407,
+      "bytes": 88041,
+      "sha256": "402f9d6ff96f03bcf1131d62a13a767f778a0be59693ef2e0a65a25f40e822a2",
+      "sample_rate": 24000,
+      "channels": 1,
+      "rms_dbfs": -19.27,
+      "peak": 0.80548,
+      "leading_silence_seconds": 0.118,
+      "trailing_silence_seconds": 0.127
+    }
+  ]
+}

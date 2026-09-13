@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { ExpandMore } from "@mui/icons-material";
 import type { Model, Option, VoiceOptions } from "./api";
+import VoiceSample from "./VoiceSample";
 
 const primaryKeys = ["speaker", "language", "speed", "speech_speed"];
 const languageNames = new Intl.DisplayNames(["ko"], { type: "language" });
@@ -59,11 +60,13 @@ export default function OptionsForm({
   value,
   onChange,
   disabled = false,
+  active = true,
 }: {
   model: Model;
   value: VoiceOptions;
   onChange: (value: VoiceOptions) => void;
   disabled?: boolean;
+  active?: boolean;
 }) {
   const id = useId();
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -143,6 +146,19 @@ export default function OptionsForm({
   return (
     <Box>
       <Box sx={grid}>{primary.map(field)}</Box>
+      {model.options.some((option) => option.key === "speaker") && (
+        <VoiceSample
+          modelId={model.id}
+          modelName={model.name}
+          speaker={String(
+            value.speaker ??
+              model.options.find((option) => option.key === "speaker")
+                ?.default ??
+              "",
+          )}
+          active={active && !disabled}
+        />
+      )}
       {advanced.length > 0 && (
         <Accordion
           disableGutters

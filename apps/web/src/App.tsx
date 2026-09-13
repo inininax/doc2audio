@@ -24,6 +24,7 @@ import {
   AutoStoriesOutlined,
   CheckCircleOutlined,
   GraphicEq,
+  HelpOutlined,
   History,
   Inventory2Outlined,
   RadioButtonChecked,
@@ -34,20 +35,28 @@ import BrowserStorage from "./BrowserStorage";
 import Models from "./Models";
 import JobCard from "./JobCard";
 import JobDetail from "./JobDetail";
-type View = "new" | "history" | "models";
+import Help from "./Help";
+type View = "new" | "history" | "models" | "help";
 const navItems = [
   { id: "new" as View, label: "새 음성 만들기", icon: <Add /> },
   { id: "history" as View, label: "작업 기록", icon: <History /> },
   { id: "models" as View, label: "모델 보관함", icon: <Inventory2Outlined /> },
+  { id: "help" as View, label: "도움말", icon: <HelpOutlined /> },
 ];
 const headings = {
   new: ["새 음성 만들기", "문서나 텍스트를 넣고, 원하는 목소리로 변환하세요."],
   history: ["작업 기록", "진행 상태를 확인하고 완성된 MP3를 듣고 저장하세요."],
   models: ["모델 보관함", "음성 변환에 사용할 모델을 다운로드하고 관리하세요."],
+  help: [
+    "도움말",
+    "내 문서가 어디에서 처리되고, 어디에 저장되는지 알아보세요.",
+  ],
 };
 function currentView(): View {
   const hash = location.hash.slice(1);
-  return ["new", "history", "models"].includes(hash) ? (hash as View) : "new";
+  return ["new", "history", "models", "help"].includes(hash)
+    ? (hash as View)
+    : "new";
 }
 export default function App() {
   const [view, setView] = useState<View>(currentView);
@@ -499,7 +508,9 @@ export default function App() {
             </Box>
             <NewJob
               models={models}
+              active={view === "new" && !selected}
               onModels={() => navigate("models")}
+              onHelp={() => navigate("help")}
               onCreated={(job) => {
                 selectJob(job);
                 setToast("음성 변환을 등록했습니다.");
@@ -551,6 +562,7 @@ export default function App() {
               </Paper>
             )}
           </Box>
+          {view === "help" && <Help />}
           {view === "models" && (
             <Models
               models={models}
@@ -618,7 +630,7 @@ export default function App() {
                     color="text.secondary"
                     sx={{ my: 1 }}
                   >
-                    문서를 업로드하거나 텍스트를 입력해 시작하세요.
+                    문서 파일을 선택하거나 텍스트를 입력해 시작하세요.
                   </Typography>
                   <Button
                     variant="contained"

@@ -6,9 +6,12 @@ import App from "./App";
 import { request, type Health, type Job } from "./api";
 import { browserModel } from "./browser/catalog";
 
+const mode = vi.hoisted(() => ({ browser: true }));
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
-  browserMode: true,
+  get browserMode() {
+    return mode.browser;
+  },
   request: vi.fn(),
 }));
 
@@ -67,6 +70,7 @@ function button(name: string): HTMLButtonElement {
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
+  mode.browser = true;
   vi.useFakeTimers();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
@@ -176,4 +180,95 @@ describe("history loading states", () => {
     await act(async () => vi.advanceTimersByTimeAsync(2000));
     expect(visibleText("h3")).toContain("아직 작업이 없습니다");
   });
+});
+
+describe("help navigation", () => {
+  it("opens a direct help link when storage or server initialization fails", async () => {
+    window.history.replaceState(null, "", "/#help");
+    vi.mocked(request).mockRejectedValue(new Error("저장소를 열 수 없습니다"));
+    await render();
+    expect(visibleText("h1")).toEqual(["도움말"]);
+    expect(button("도움말").getAttribute("aria-current")).toBe("page");
+    expect(visibleText("h2")).toContain("접속부터 MP3까지, 7단계");
+    expect(visibleText('[role="alert"]')).toContain("저장소를 열 수 없습니다");
+  });
+
+  it("keeps the selected file and text draft while visiting help from the form and menu", async () => {
+    window.history.replaceState(null, "", "/#new");
+    api((path) => {
+      if (path.startsWith("/jobs?")) return { items: [], total: 0 };
+      throw new Error(`예상하지 못한 요청: ${path}`);
+    });
+    await render();
+    const input =
+      container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const file = new File(["테스트 문서"], "이어갈 문서.txt", {
+      type: "text/plain",
+    });
+    await act(async () => {
+      Object.defineProperty(input, "files", {
+        configurable: true,
+        value: [file],
+      });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      button("텍스트 입력").click();
+    });
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      'textarea:not([aria-hidden="true"])',
+    )!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        "value",
+      )!.set!.call(textarea, "도움말을 읽고 돌아와도 유지할 문장입니다.");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () =>
+      container.querySelector<HTMLAnchorElement>('a[href="#help"]')!.click(),
+    );
+    expect(visibleText("h1")).toEqual(["도움말"]);
+    expect(location.hash).toBe("#help");
+    await click("새 음성 만들기");
+    expect(textarea.value).toBe("도움말을 읽고 돌아와도 유지할 문장입니다.");
+    await click("파일 선택");
+    expect(button("파일 바꾸기").textContent).toContain("이어갈 문서.txt");
+    await click("도움말");
+    await click("새 음성 만들기");
+    expect(button("파일 바꾸기").textContent).toContain("이어갈 문서.txt");
+    expect(
+      vi.mocked(request).mock.calls.every(([, init]) => !init?.method),
+    ).toBe(true);
+  });
+
+  it.each([true, false])(
+    "describes the actual processing boundary for browser mode = %s",
+    async (browser) => {
+      mode.browser = browser;
+      window.history.replaceState(null, "", "/#new");
+      api((path) => {
+        if (path.startsWith("/jobs?")) return { items: [], total: 0 };
+        throw new Error(`예상하지 못한 요청: ${path}`);
+      });
+      await render();
+      const form = container.querySelector('form[aria-label="새 음성 작업"]')!;
+      expect(form.textContent).toContain(
+        browser
+          ? "이 PC의 브라우저 안에서 처리"
+          : "이 PC의 Python 서버로 문서를 전달",
+      );
+      expect(form.textContent).not.toContain(
+        browser
+          ? "이 PC의 Python 서버로 문서를 전달"
+          : "이 PC의 브라우저 안에서 처리",
+      );
+      await click("도움말");
+      const steps = container.querySelector("ol")!;
+      expect(steps.textContent).toContain(
+        browser ? "내 PC · 브라우저 저장소" : "프로젝트 · .models/",
+      );
+      expect(steps.textContent).not.toContain(
+        browser ? "프로젝트 · .models/" : "내 PC · 브라우저 저장소",
+      );
+    },
+  );
 });

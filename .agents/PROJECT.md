@@ -56,3 +56,9 @@
 - 선택적 로컬 서버 작업은 `.doc2audio/jobs.sqlite3`와 `.doc2audio/jobs/`에 저장한다. `DOC2AUDIO_DATA_DIR`, `DOC2AUDIO_MODELS_DIR`로 변경 가능하다.
 - 로컬 Python 서버는 127.0.0.1에만 바인딩한다. 모델 추론은 별도 프로세스의 단일 대기열에서 실행하며 외부 요청은 모델 설치 시에만 허용한다.
 - 웹 UI는 Material 관리자 화면 구성을 사용한다. 기본/고급 음성 옵션, 메뉴 이동 중 입력 보존, 작은 화면의 1열 배치와 모바일 48px 조작 영역을 유지한다. 디자인 근거와 UI 검증은 `docs/ui-refresh.md`에 기록한다.
+
+- 목소리 비교용 한국어 MP3 28개(Supertonic 10, Qwen 두 모델 각 9)는 `apps/web/public/voice-samples/`의 제품용 합성 음성 자산이다. 생성 옵션·리비전·SHA는 manifest에 기록하며 `uv run python scripts/generate_voice_samples.py --overwrite`로 재생성한다. 모델 다운로드 없이 재생하고, 선택·화면 변경 시 정지한다. Qwen은 기존 Apple Silicon 로컬 서버 경로로 안내한다.
+
+- 사이트의 `#help` 도움말은 모델·저장소 초기화와 무관하게 접근할 수 있다. 문서 선택 화면과 도움말은 브라우저 내부 처리와 내 PC의 Python 서버 전달을 실행 모드에 맞게 설명한다. 파일을 선택하기만 한 초안은 창을 닫으면 사라지며, 변환 시작 후 등록한 원문·설정부터 저장한다.
+- README용 실제 화면은 `docs/assets/screenshots/web/`, 편집 가능한 처리 도식은 `docs/assets/diagrams/`에서 관리한다. 갱신·출처 규칙은 `docs/assets/README.md`, 기존 CLI·서버·모델 폴더 지정은 `docs/local-usage.md`를 따른다.
+- 배포 웹의 사용자 지정 폴더 모델 저장 가능성은 `docs/model-storage.md`에 공식 근거와 함께 조사했다. File System Access를 사용한 추가 개발안이며 현재는 IndexedDB 저장을 유지한다. OPFS를 사용자 지정 폴더로 설명하지 않는다.

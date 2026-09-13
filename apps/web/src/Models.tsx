@@ -16,6 +16,7 @@ import {
   OpenInNew,
 } from "@mui/icons-material";
 import { active, browserMode, type Job, type Model } from "./api";
+import RuntimeHelp from "./RuntimeHelp";
 
 export default function Models({
   models,
@@ -301,9 +302,12 @@ export default function Models({
       >
         검토된 모델 카탈로그 · {models[0]?.reviewed_at || "—"} 기준. 새 모델은
         호환성을 검토한 뒤 추가됩니다.
-        {browserMode &&
-          " Qwen MLX 모델은 Python 실행 모드에서 사용할 수 있습니다."}
       </Typography>
+      {browserMode && (
+        <Box sx={{ mt: 3 }}>
+          <RuntimeHelp />
+        </Box>
+      )}
     </>
   );
 }
