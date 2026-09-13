@@ -58,6 +58,11 @@ def cached_chunk(wav: Path, record: dict) -> bool:
     return bool(record) and valid_wav(wav) and file_hash(wav) == record.get("sha256")
 
 
+def segment_path(job: Path, index: int, part: int) -> Path:
+    suffix = f"-{part:03d}" if part else ""
+    return job / f"{index:05d}{suffix}.wav"
+
+
 def convert_document(
     source: Path,
     destination: Path,
@@ -136,7 +141,7 @@ def convert_document(
     )
     identity = {
         "version": __version__,
-        "pipeline_revision": 2,  # Invalidate chunks created before per-part padding repair.
+        "pipeline_revision": 3,  # Cache native pieces without fixed internal silence.
         "model": spec["repo_id"],
         "revision": spec["revision"],
         "options": {
@@ -173,9 +178,14 @@ def convert_document(
         narrator = None
         wav_paths, reused = [], 0
         for position, (index, chunk) in enumerate(spoken_chunks, 1):
-            wav = job / f"{index:05d}.wav"
             record = manifest["completed"].get(str(index), {})
-            if isinstance(record, dict) and cached_chunk(wav, record):
+            records = record.get("parts", [record]) if isinstance(record, dict) else []
+            records = records if isinstance(records, list) else []
+            paths = [segment_path(job, index, part) for part in range(len(records))]
+            if records and all(
+                isinstance(item, dict) and cached_chunk(path, item)
+                for path, item in zip(paths, records, strict=True)
+            ):
                 progress(f"[{position}/{len(spoken_chunks)}] 저장된 음성 재사용")
                 reused += 1
             else:
@@ -191,20 +201,32 @@ def convert_document(
                     else:
                         narrator = narrator_factory()
                 progress(f"[{position}/{len(spoken_chunks)}] {len(chunk)}자 음성 생성 중")
-                audio, rate = narrator.generate(chunk, (options.seed + index) % 2**32)
-                if rate != 24000:
-                    raise Doc2AudioError(f"예상하지 못한 샘플레이트입니다: {rate}")
-                audio = prepare_audio(audio, rate)
-                temporary = wav.with_suffix(".tmp.wav")
-                sf.write(temporary, audio, rate, subtype="PCM_16")
-                os.replace(temporary, wav)
-                manifest["completed"][str(index)] = {
-                    "sha256": file_hash(wav),
-                    "seconds": len(audio) / rate,
-                }
+                seed = (options.seed + index) % 2**32
+                segments = (
+                    narrator.generate_segments(chunk, seed)
+                    if hasattr(narrator, "generate_segments")
+                    else [narrator.generate(chunk, seed)]
+                )
+                records, paths = [], []
+                for part, (audio, rate) in enumerate(segments):
+                    if rate != 24000:
+                        raise Doc2AudioError(f"예상하지 못한 샘플레이트입니다: {rate}")
+                    audio = prepare_audio(audio, rate)
+                    wav = segment_path(job, index, part)
+                    temporary = wav.with_suffix(".tmp.wav")
+                    sf.write(temporary, audio, rate, subtype="PCM_16")
+                    os.replace(temporary, wav)
+                    records.append({"sha256": file_hash(wav), "seconds": len(audio) / rate})
+                    paths.append(wav)
+                if not records:
+                    raise Doc2AudioError("음성 모델이 오디오를 반환하지 않았습니다.")
+                manifest["completed"][str(index)] = (
+                    records[0] if len(records) == 1 else {"parts": records}
+                )
                 write_json(manifest_path, manifest)
-                progress(f"[{position}/{len(spoken_chunks)}] 완료 · 음성 {len(audio) / rate:.1f}초")
-            wav_paths.append(wav)
+                seconds = sum(item["seconds"] for item in records)
+                progress(f"[{position}/{len(spoken_chunks)}] 완료 · 음성 {seconds:.1f}초")
+            wav_paths.extend(paths)
         progress("음량을 맞추고 오디오 파일을 저장합니다.")
         duration = encode_audio(
             wav_paths,

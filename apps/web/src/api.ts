@@ -23,6 +23,14 @@ export type Model = {
   revision: string;
   reviewed_at: string;
   options: Option[];
+  storage?: {
+    kind: "indexeddb" | "filesystem";
+    location: string;
+    used_bytes: number;
+    has_data: boolean;
+    can_delete: boolean;
+    delete_blocked_reason?: string;
+  };
 };
 export type Job = {
   id: string;

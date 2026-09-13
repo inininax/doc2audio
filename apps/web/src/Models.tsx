@@ -1,8 +1,14 @@
+import { useId, useState } from "react";
 import {
   Alert,
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
   LinearProgress,
   Link,
@@ -12,23 +18,135 @@ import {
 } from "@mui/material";
 import {
   CheckCircleOutlined,
+  ContentCopyOutlined,
+  DeleteOutlined,
   DownloadOutlined,
+  ExpandLess,
+  ExpandMore,
   OpenInNew,
 } from "@mui/icons-material";
 import { active, browserMode, type Job, type Model } from "./api";
 import RuntimeHelp from "./RuntimeHelp";
 
+function storageSize(bytes: number) {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(2)} GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`;
+  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
+function StorageDetails({
+  storage,
+  name,
+}: {
+  storage: NonNullable<Model["storage"]>;
+  name: string;
+}) {
+  const id = useId();
+  const [expanded, setExpanded] = useState(false);
+  const [copyState, setCopyState] = useState<
+    "idle" | "copying" | "copied" | "failed"
+  >("idle");
+  async function copyLocation() {
+    if (copyState === "copying") return;
+    setCopyState("copying");
+    try {
+      if (!navigator.clipboard?.writeText)
+        throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(storage.location);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+  }
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        저장 용량 {storageSize(storage.used_bytes)}
+      </Typography>
+      {!storage.has_data && (
+        <Typography variant="caption" color="text.secondary">
+          저장된 모델 데이터가 없습니다.
+        </Typography>
+      )}
+      <Button
+        fullWidth
+        aria-label={`${name} 저장 위치 ${expanded ? "접기" : "보기"}`}
+        aria-expanded={expanded}
+        aria-controls={id}
+        onClick={() => setExpanded(!expanded)}
+        endIcon={expanded ? <ExpandLess /> : <ExpandMore />}
+        sx={{ justifyContent: "space-between", minHeight: 44, px: 0 }}
+      >
+        저장 위치
+      </Button>
+      {expanded && (
+        <Box id={id}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            {storage.kind === "indexeddb"
+              ? "브라우저 내부 저장 위치입니다. 실제 폴더 경로는 브라우저가 공개하지 않습니다."
+              : "이 컴퓨터에 저장되는 모델 폴더입니다."}
+          </Typography>
+          <Box
+            component="code"
+            sx={{
+              display: "block",
+              p: 1.5,
+              bgcolor: "action.hover",
+              borderRadius: 1,
+              fontSize: 12,
+              whiteSpace: "pre-wrap",
+              overflowWrap: "anywhere",
+              userSelect: "text",
+            }}
+          >
+            {storage.location}
+          </Box>
+          <Button
+            startIcon={<ContentCopyOutlined />}
+            aria-label={`${name} 저장 위치 복사`}
+            disabled={copyState === "copying"}
+            onClick={() => void copyLocation()}
+            sx={{ minHeight: 44 }}
+          >
+            {copyState === "copying" ? "복사 중…" : "위치 복사"}
+          </Button>
+          {copyState === "copied" && (
+            <Typography role="status" variant="body2" color="success.main">
+              저장 위치를 복사했습니다.
+            </Typography>
+          )}
+          {copyState === "failed" && (
+            <Alert
+              severity="warning"
+              sx={{ "& .MuiAlert-message": { minWidth: 0 } }}
+            >
+              복사하지 못했습니다. 위의 저장 위치를 선택해 직접 복사해 주세요.
+            </Alert>
+          )}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 export default function Models({
   models,
   jobs,
   onDownload,
+  onDelete,
   busy,
 }: {
   models: Model[];
   jobs: Job[];
   onDownload: (id: string) => void;
+  onDelete: (id: string) => void;
   busy: boolean;
 }) {
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const deleting = models.find((model) => model.id === deleteId);
+  const canDelete = (model: Model) =>
+    !busy && !!model.storage?.has_data && model.storage.can_delete;
   const singleModel = models.length === 1;
   return (
     <>
@@ -137,7 +255,9 @@ export default function Models({
                         ? "다운로드 진행 중"
                         : model.installed
                           ? "사용 준비 완료"
-                          : "다운로드 필요"
+                          : model.storage?.has_data
+                            ? "일부 다운로드됨"
+                            : "다운로드 필요"
                     }
                     sx={{ maxWidth: "100%" }}
                   />
@@ -159,7 +279,7 @@ export default function Models({
                 <Stack direction="row" sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
                   <Chip
                     size="small"
-                    label={`${(model.size_bytes / 1e9).toFixed(2)} GB`}
+                    label={`모델 크기 ${(model.size_bytes / 1e9).toFixed(2)} GB`}
                   />
                   <Chip
                     size="small"
@@ -229,6 +349,13 @@ export default function Models({
                   </Box>
                 </Box>
                 <Divider />
+                {model.storage && (
+                  <StorageDetails
+                    key={model.storage.location}
+                    storage={model.storage}
+                    name={model.name}
+                  />
+                )}
                 {pending && (
                   <Box>
                     <LinearProgress
@@ -278,6 +405,27 @@ export default function Models({
                         ? "사용 준비 완료"
                         : "모델 다운로드"}
                   </Button>
+                  {model.storage?.has_data && (
+                    <>
+                      <Button
+                        fullWidth
+                        color="error"
+                        startIcon={<DeleteOutlined />}
+                        aria-label={`${model.name} 모델 삭제`}
+                        disabled={!canDelete(model)}
+                        onClick={() => setDeleteId(model.id)}
+                        sx={{ minHeight: 48 }}
+                      >
+                        모델 삭제
+                      </Button>
+                      {!model.storage.can_delete && (
+                        <Typography variant="caption" color="text.secondary">
+                          {model.storage.delete_blocked_reason ||
+                            "지금은 모델을 삭제할 수 없습니다."}
+                        </Typography>
+                      )}
+                    </>
+                  )}
                   <Button
                     fullWidth
                     href={model.source_url}
@@ -295,6 +443,58 @@ export default function Models({
           );
         })}
       </Box>
+      <Dialog
+        open={!!deleting}
+        onClose={() => setDeleteId(null)}
+        aria-labelledby="delete-model-title"
+        aria-describedby="delete-model-description"
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { overflowWrap: "anywhere" } } }}
+      >
+        <DialogTitle id="delete-model-title">모델을 삭제할까요?</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1, fontWeight: 600 }}>
+            {deleting?.name}
+          </Typography>
+          <DialogContentText id="delete-model-description">
+            다운로드한 모델 데이터
+            {deleting?.storage
+              ? ` ${storageSize(deleting.storage.used_bytes)}`
+              : ""}
+            를 삭제합니다. 원문, 작업 기록, 완성된 MP3는 그대로 남습니다. 이
+            모델로 다시 변환하려면 다운로드가 필요합니다.
+          </DialogContentText>
+          {deleting && !deleting.storage?.can_delete && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              {deleting.storage?.delete_blocked_reason ||
+                "지금은 모델을 삭제할 수 없습니다."}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button
+            autoFocus
+            onClick={() => setDeleteId(null)}
+            sx={{ minHeight: 44 }}
+          >
+            취소
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={!deleting || !canDelete(deleting)}
+            onClick={() => {
+              if (!deleting || !canDelete(deleting)) return;
+              setDeleteId(null);
+              onDelete(deleting.id);
+            }}
+            sx={{ minHeight: 44 }}
+          >
+            삭제하기
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Typography
         variant="body2"
         color="text.secondary"

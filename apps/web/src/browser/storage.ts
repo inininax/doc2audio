@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { Job } from "../api";
+import type { Job, Model } from "../api";
 import manifest from "./model-manifest.json";
 
 export type StoredJob = Job & {
@@ -403,6 +403,98 @@ export async function modelInstalled(): Promise<boolean> {
   return assets.every((item, index) =>
     verifiedAsset(item, manifest.assets[index].name),
   );
+}
+
+const MODEL_IN_USE =
+  "이 모델의 다운로드 또는 변환 작업을 먼저 일시정지하거나 취소하세요.";
+const modelRange = () =>
+  IDBKeyRange.bound(`${manifest.id}/`, `${manifest.id}/\uffff`);
+const usesModel = (job: StoredJob) =>
+  job.model_id === manifest.id &&
+  ["queued", "running", "cancelling"].includes(job.status);
+
+/** Count stored Blob bytes, including interrupted downloads and older revisions. */
+export async function modelStorageInfo(origin: string): Promise<{
+  installed: boolean;
+  storage: NonNullable<Model["storage"]>;
+}> {
+  const db = await database();
+  const tx = db.transaction(["jobs", "assets", "assetParts"]);
+  void tx.done.catch(() => {});
+  const assets = tx.objectStore("assets");
+  let used_bytes = 0;
+  let has_data = false;
+  let cursor = await assets.openCursor(modelRange());
+  while (cursor) {
+    used_bytes += cursor.value.blob.size;
+    has_data = true;
+    cursor = await cursor.continue();
+  }
+  let part = await tx
+    .objectStore("assetParts")
+    .index("by-asset")
+    .openCursor(modelRange());
+  while (part) {
+    used_bytes += part.value.blob.size;
+    has_data = true;
+    part = await part.continue();
+  }
+  const current = await Promise.all(
+    manifest.assets.map((item) => assets.get(assetKey(item.name))),
+  );
+  const busy = (await tx.objectStore("jobs").getAll()).some(usesModel);
+  await tx.done;
+  return {
+    installed: current.every((item, index) =>
+      verifiedAsset(item, manifest.assets[index].name),
+    ),
+    storage: {
+      kind: "indexeddb",
+      location: `${origin} → IndexedDB → ${DATABASE_NAME} → assets / assetParts → ${manifest.id}`,
+      used_bytes,
+      has_data,
+      can_delete: has_data && !busy,
+      ...(busy ? { delete_blocked_reason: MODEL_IN_USE } : {}),
+    },
+  };
+}
+
+/** Caller also holds the submission and runner locks, fencing late worker writes. */
+export async function deleteModelAssets(): Promise<number> {
+  const db = await database();
+  // Sharing the jobs scope makes the active check and deletion one transaction.
+  const tx = db.transaction(["jobs", "assets", "assetParts"], "readwrite");
+  void tx.done.catch(() => {});
+  try {
+    if ((await tx.objectStore("jobs").getAll()).some(usesModel))
+      throw new Error(MODEL_IN_USE);
+    let freed = 0;
+    let asset = await tx.objectStore("assets").openCursor(modelRange());
+    while (asset) {
+      freed += asset.value.blob.size;
+      await asset.delete();
+      asset = await asset.continue();
+    }
+    let part = await tx
+      .objectStore("assetParts")
+      .index("by-asset")
+      .openCursor(modelRange());
+    while (part) {
+      freed += part.value.blob.size;
+      await part.delete();
+      part = await part.continue();
+    }
+    await tx.done;
+    return freed;
+  } catch (error) {
+    try {
+      tx.abort();
+    } catch {
+      /* A failed transaction may already be aborted. */
+    }
+    await tx.done.catch(() => {});
+    throw error;
+  }
 }
 
 export async function readAssetParts(name: string): Promise<AssetPart[]> {

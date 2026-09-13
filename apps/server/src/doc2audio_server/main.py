@@ -8,7 +8,7 @@ from .app import create_app
 
 
 def main():
-    parser = argparse.ArgumentParser(description="doc2audio 로컬 웹 서버")
+    parser = argparse.ArgumentParser(description="DOC2AUDIO 로컬 웹 서버")
     parser.add_argument("--port", type=int, default=8010)
     parser.add_argument("--data-dir", type=Path)
     args = parser.parse_args()

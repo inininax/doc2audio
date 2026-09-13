@@ -25,6 +25,11 @@ const state = vi.hoisted(() => ({
   events: [] as string[],
   createGate: undefined as Promise<void> | undefined,
   openGate: undefined as Promise<void> | undefined,
+  deleteGate: undefined as Promise<void> | undefined,
+  installed: true,
+  modelBytes: 4,
+  removeModel: vi.fn(),
+  download: vi.fn(),
   synthesis:
     vi.fn<
       (
@@ -35,6 +40,7 @@ const state = vi.hoisted(() => ({
     >(),
   close: vi.fn(),
   extract: vi.fn(),
+  split: vi.fn(),
   encode: vi.fn(),
   read: vi.fn(),
   get: vi.fn(),
@@ -114,7 +120,33 @@ vi.mock("./storage", () => {
       return true;
     },
     deleteJob: async (id: string) => state.jobs.delete(id),
-    modelInstalled: async () => true,
+    modelInstalled: async () => state.installed,
+    modelStorageInfo: async (origin: string) => ({
+      installed: state.installed,
+      storage: {
+        kind: "indexeddb",
+        location: `${origin} → IndexedDB → doc2audio-browser → assets / assetParts`,
+        used_bytes: state.modelBytes,
+        has_data: state.modelBytes > 0,
+        can_delete: state.modelBytes > 0,
+      },
+    }),
+    deleteModelAssets: async () => {
+      state.removeModel();
+      await state.deleteGate;
+      if (
+        [...state.jobs.values()].some(
+          (job) =>
+            job.model_id === manifest.id &&
+            ["queued", "running", "cancelling"].includes(job.status),
+        )
+      )
+        throw new Error("작업을 먼저 일시정지하거나 취소하세요.");
+      const freed = state.modelBytes;
+      state.installed = false;
+      state.modelBytes = 0;
+      return freed;
+    },
     storageInfo: async () => ({ usage: 0, quota: 10000000, persistent: true }),
     requestPersistence: async () => true,
   };
@@ -136,12 +168,14 @@ vi.mock("./speech-client", () => ({
 }));
 vi.mock("./documents", () => ({
   extractDocument: (...args: unknown[]) => state.extract(...args),
-  splitText: (text: string) => text.split("|").filter(Boolean),
+  splitText: (text: string, limit: number) => state.split(text, limit),
 }));
 vi.mock("./encode", () => ({
   encodeMp3: (...args: unknown[]) => state.encode(...args),
 }));
-vi.mock("./download", () => ({ downloadModel: vi.fn(async () => {}) }));
+vi.mock("./download", () => ({
+  downloadModel: (...args: unknown[]) => state.download(...args),
+}));
 
 const fixtureEncodedSeconds = 0.125;
 const fixtureAudio = (): PCM => ({
@@ -164,6 +198,14 @@ beforeEach(() => {
   state.events.length = 0;
   state.createGate = undefined;
   state.openGate = undefined;
+  state.deleteGate = undefined;
+  state.installed = true;
+  state.modelBytes = 4;
+  state.removeModel.mockReset();
+  state.download.mockReset().mockImplementation(async () => {
+    state.installed = true;
+    state.modelBytes = 4;
+  });
   state.synthesis.mockReset().mockImplementation(async () => fixtureAudio());
   state.close.mockReset();
   state.read.mockReset();
@@ -175,6 +217,9 @@ beforeEach(() => {
     text: await source.text(),
     warnings: [],
   }));
+  state.split
+    .mockReset()
+    .mockImplementation((text: string) => text.split("|").filter(Boolean));
   state.encode
     .mockReset()
     .mockImplementation(
@@ -200,6 +245,7 @@ beforeEach(() => {
   queueLocks = new Map();
   vi.stubGlobal("window", windowSurface);
   vi.stubGlobal("document", documentSurface);
+  vi.stubGlobal("location", new URL("https://doc2audio.test"));
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("crypto", webcrypto);
   vi.stubGlobal("indexedDB", {});
@@ -340,6 +386,103 @@ describe("persistent browser queue lifecycle", () => {
       nominalSeconds,
       5,
     );
+    await waitIdle();
+  });
+
+  it("keeps every submitted voice setting through pause/resume and applies chunking, seed and MP3 options", async () => {
+    documentSurface.visibilityState = "hidden";
+    const late = deferred<PCM>();
+    state.synthesis
+      .mockResolvedValueOnce(fixtureAudio())
+      .mockReturnValueOnce(late.promise);
+    const voice = {
+      speaker: "M4",
+      language: "en",
+      total_steps: 5,
+      speech_speed: 1.05,
+      speed: 0.75,
+      pause: 0.6,
+      seed: 0xffffffff,
+      chunk_chars: 64,
+    };
+    const body = submittedText("First sentence|Last sentence");
+    body.set("options", JSON.stringify(voice));
+    const service = await import("./service");
+    const created = await service.browserRequest<StoredJob>("jobs", {
+      method: "POST",
+      body,
+    });
+    expect(state.jobs.get(created.id)?.options.voice).toEqual(voice);
+    documentSurface.visibilityState = "visible";
+    windowSurface.dispatchEvent(new Event("pageshow"));
+    await waitFor(() => state.synthesis.mock.calls.length === 2);
+    await service.browserRequest(`jobs/${created.id}/pause`, {
+      method: "POST",
+    });
+    late.resolve(fixtureAudio());
+    await waitIdle();
+    const fingerprint = state.jobs.get(created.id)?.fingerprint;
+    expect(fingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(state.jobs.get(created.id)?.completedChunks).toBe(1);
+    await service.browserRequest(`jobs/${created.id}/resume`, {
+      method: "POST",
+    });
+    await waitFor(() => state.jobs.get(created.id)?.status === "completed");
+    expect(state.jobs.get(created.id)?.options.voice).toEqual(voice);
+    expect(state.jobs.get(created.id)?.fingerprint).toBe(fingerprint);
+    expect(state.jobs.get(created.id)?.result?.reused_chunks).toBe(1);
+    expect(state.split).toHaveBeenCalledExactlyOnceWith(
+      "First sentence|Last sentence",
+      64,
+    );
+    expect(state.synthesis.mock.calls).toEqual([
+      ["First sentence", voice, 0xffffffff],
+      ["Last sentence", voice, 0],
+      ["Last sentence", voice, 0],
+    ]);
+    expect(state.encode.mock.calls[0][2]).toMatchObject({
+      speed: 0.75,
+      pause: 0.6,
+    });
+    await waitIdle();
+  });
+
+  it("refuses to reuse saved audio after a persisted speech setting changes", async () => {
+    documentSurface.visibilityState = "hidden";
+    const initial = job(
+      "changed-voice",
+      "paused",
+      "First sentence|Last sentence",
+    );
+    initial.texts = ["First sentence", "Last sentence"];
+    initial.completedChunks = 1;
+    const original = new TextEncoder().encode(
+      JSON.stringify({
+        version: initial.pipelineVersion,
+        revision: initial.modelRevision,
+        texts: initial.texts,
+        options: initial.options,
+      }),
+    );
+    initial.fingerprint = [
+      ...new Uint8Array(await webcrypto.subtle.digest("SHA-256", original)),
+    ]
+      .map((value) => value.toString(16).padStart(2, "0"))
+      .join("");
+    initial.options.voice!.speech_speed = 1.25;
+    state.jobs.set(initial.id, initial);
+    state.chunks.set(`${initial.id}/0`, fixtureAudio());
+    const service = await import("./service");
+    await service.browserRequest(`jobs/${initial.id}/resume`, {
+      method: "POST",
+    });
+    documentSurface.visibilityState = "visible";
+    windowSurface.dispatchEvent(new Event("pageshow"));
+    await waitFor(() => state.jobs.get(initial.id)?.status === "failed");
+    expect(state.jobs.get(initial.id)?.error).toContain("설정이 변경");
+    expect(state.synthesis).not.toHaveBeenCalled();
+    expect(state.encode).not.toHaveBeenCalled();
+    expect(state.chunks.has(`${initial.id}/0`)).toBe(true);
     await waitIdle();
   });
 
@@ -673,6 +816,178 @@ describe("persistent browser queue lifecycle", () => {
     );
     expect(state.save).not.toHaveBeenCalled();
     expect(state.output).not.toHaveBeenCalled();
+  });
+});
+
+describe("model storage API and cross-tab deletion", () => {
+  it("returns the logical browser location and deletion byte count without deleting audio jobs", async () => {
+    documentSurface.visibilityState = "hidden";
+    const complete = job("finished", "completed");
+    complete.output = new Blob(["fixture MP3"]);
+    state.jobs.set(complete.id, complete);
+    const service = await import("./service");
+    const before = await service.browserRequest<{
+      items: import("../api").Model[];
+    }>("models");
+    expect(before.items[0].storage).toMatchObject({
+      kind: "indexeddb",
+      used_bytes: 4,
+      has_data: true,
+      location:
+        "https://doc2audio.test → IndexedDB → doc2audio-browser → assets / assetParts",
+    });
+    const audio = await service.browserRequest<StoredJob>("jobs/finished");
+    await expect(
+      service.browserRequest(`models/unsupported/delete`, { method: "POST" }),
+    ).rejects.toThrow("지원하지 않는 모델");
+    expect(state.removeModel).not.toHaveBeenCalled();
+    expect(
+      await service.browserRequest(`models/${manifest.id}/delete`, {
+        method: "POST",
+      }),
+    ).toEqual({ deleted: true, freed_bytes: 4 });
+    expect(state.jobs.size).toBe(1);
+    expect(await state.jobs.get(complete.id)!.output!.text()).toBe(
+      "fixture MP3",
+    );
+    const afterAudio = await service.browserRequest<StoredJob>("jobs/finished");
+    expect(afterAudio.audio_url).toBe(audio.audio_url);
+    const after = await service.browserRequest<{
+      items: import("../api").Model[];
+    }>("models");
+    expect(after.items[0]).toMatchObject({
+      installed: false,
+      storage: { used_bytes: 0, has_data: false },
+    });
+  });
+
+  it("serializes another tab's conversion and resume behind deletion, then permits re-download", async () => {
+    documentSurface.visibilityState = "hidden";
+    state.jobs.set("paused", job("paused", "paused"));
+    const gate = deferred<void>();
+    state.deleteGate = gate.promise;
+    const firstTab = await import("./service");
+    const removal = firstTab.browserRequest(`models/${manifest.id}/delete`, {
+      method: "POST",
+    });
+    await waitFor(() => state.removeModel.mock.calls.length === 1);
+    vi.resetModules();
+    const secondTab = await import("./service");
+    const submission = secondTab.browserRequest("jobs", {
+      method: "POST",
+      body: submittedText("새 문서"),
+    });
+    const resume = secondTab.browserRequest("jobs/paused/resume", {
+      method: "POST",
+    });
+    // Observe rejections before releasing the deletion transaction.
+    const settled = Promise.allSettled([submission, resume]);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(state.jobs.size).toBe(1);
+    expect(state.jobs.get("paused")!.status).toBe("paused");
+    gate.resolve();
+    await removal;
+    const results = await settled;
+    expect(results.map((result) => result.status)).toEqual([
+      "rejected",
+      "rejected",
+    ]);
+    for (const result of results) {
+      if (result.status === "rejected")
+        expect(result.reason.message).toContain("다운로드");
+    }
+    expect(state.jobs.get("paused")!.status).toBe("paused");
+    state.deleteGate = undefined;
+    const download = await secondTab.browserRequest<StoredJob>(
+      `models/${manifest.id}/download`,
+      { method: "POST" },
+    );
+    expect(download.status).toBe("queued");
+    documentSurface.visibilityState = "visible";
+    windowSurface.dispatchEvent(new Event("pageshow"));
+    await waitFor(() => state.jobs.get(download.id)?.status === "completed");
+    expect(state.installed).toBe(true);
+    await secondTab.browserRequest("jobs/paused/resume", { method: "POST" });
+    await waitFor(() => state.jobs.get("paused")?.status === "completed");
+    await waitIdle();
+  });
+
+  it("waits for a concurrent submission to commit and then refuses to delete its model", async () => {
+    documentSurface.visibilityState = "hidden";
+    const gate = deferred<void>();
+    state.createGate = gate.promise;
+    const firstTab = await import("./service");
+    const submission = firstTab.browserRequest("jobs", {
+      method: "POST",
+      body: submittedText("등록 중인 문서"),
+    });
+    await waitFor(() => queueLocks.has("doc2audio-job-submit"));
+    vi.resetModules();
+    const secondTab = await import("./service");
+    const removal = secondTab.browserRequest(`models/${manifest.id}/delete`, {
+      method: "POST",
+    });
+    const rejected = expect(removal).rejects.toThrow("일시정지");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(state.removeModel).not.toHaveBeenCalled();
+    gate.resolve();
+    await submission;
+    await rejected;
+    expect(state.installed).toBe(true);
+    expect(state.modelBytes).toBe(4);
+    expect(state.jobs.size).toBe(1);
+  });
+
+  it("queues a download from another tab only after model deletion completes", async () => {
+    documentSurface.visibilityState = "hidden";
+    const gate = deferred<void>();
+    state.deleteGate = gate.promise;
+    const firstTab = await import("./service");
+    const removal = firstTab.browserRequest(`models/${manifest.id}/delete`, {
+      method: "POST",
+    });
+    await waitFor(() => state.removeModel.mock.calls.length === 1);
+    vi.resetModules();
+    const secondTab = await import("./service");
+    const download = secondTab.browserRequest<StoredJob>(
+      `models/${manifest.id}/download`,
+      { method: "POST" },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(state.jobs.size).toBe(0);
+    gate.resolve();
+    await removal;
+    const queued = await download;
+    expect(queued.kind).toBe("download");
+    expect(queued.status).toBe("queued");
+    expect(state.installed).toBe(false);
+  });
+
+  it("blocks deletion until a paused download has released the runner in another tab", async () => {
+    const gate = deferred<void>();
+    state.download.mockReturnValueOnce(gate.promise);
+    const download = { ...job("in-flight"), kind: "download" as const };
+    state.jobs.set(download.id, download);
+    const firstTab = await import("./service");
+    await firstTab.initialize();
+    await waitFor(() => state.download.mock.calls.length === 1);
+    vi.resetModules();
+    const secondTab = await import("./service");
+    await secondTab.browserRequest("jobs/in-flight/pause", { method: "POST" });
+    expect(state.jobs.get(download.id)!.status).toBe("paused");
+    await expect(
+      secondTab.browserRequest(`models/${manifest.id}/delete`, {
+        method: "POST",
+      }),
+    ).rejects.toThrow("종료 중");
+    expect(state.removeModel).not.toHaveBeenCalled();
+    gate.resolve();
+    await waitIdle();
+    await secondTab.browserRequest(`models/${manifest.id}/delete`, {
+      method: "POST",
+    });
+    expect(state.modelBytes).toBe(0);
+    expect(state.jobs.get(download.id)!.status).toBe("paused");
   });
 });
 

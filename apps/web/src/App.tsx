@@ -297,13 +297,27 @@ export default function App() {
       </a>
       <Box component="aside" className="sidebar" aria-label="워크스페이스">
         <Box className="brand">
-          <Box className="brand-icon">
-            <GraphicEq />
+          <Box className="brand-icon" sx={{ bgcolor: "transparent" }}>
+            <Box
+              component="img"
+              src={`${import.meta.env.BASE_URL}brand/logo-128.png`}
+              srcSet={`${import.meta.env.BASE_URL}brand/logo-256.png 2x`}
+              alt=""
+              width={34}
+              height={34}
+              sx={{
+                display: "block",
+                width: "100%",
+                height: "100%",
+                borderRadius: "inherit",
+                objectFit: "contain",
+              }}
+            />
           </Box>
           <Typography
             sx={{ fontWeight: 750, fontSize: 20, letterSpacing: -0.6 }}
           >
-            doc2audio
+            DOC2AUDIO
           </Typography>
           <Typography
             className="mobile-runtime"
@@ -365,7 +379,7 @@ export default function App() {
             color="text.secondary"
             sx={{ display: "block", mt: 2 }}
           >
-            doc2audio{health?.version ? ` v${health.version}` : ""}
+            DOC2AUDIO{health?.version ? ` v${health.version}` : ""}
           </Typography>
         </Box>
       </Box>
@@ -574,6 +588,9 @@ export default function App() {
                   "모델 다운로드를 등록했습니다.",
                 );
               }}
+              onDelete={(id) => {
+                void action(`/models/${id}/delete`, "모델을 삭제했습니다.");
+              }}
             />
           )}
           {view === "history" && (
@@ -674,7 +691,7 @@ export default function App() {
           <Box component="footer" sx={{ mt: 4 }}>
             <Divider sx={{ mb: 2 }} />
             <Typography variant="caption" color="text.secondary">
-              doc2audio · 문서를 음성으로
+              DOC2AUDIO · 문서를 음성으로
             </Typography>
           </Box>
         </Box>

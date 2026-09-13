@@ -16,6 +16,7 @@ const primaryKeys = ["speaker", "language", "speed", "speech_speed"];
 const languageNames = new Intl.DisplayNames(["ko"], { type: "language" });
 const languageLabels: Record<string, string> = {
   Auto: "자동 감지",
+  auto: "자동 감지",
   Korean: "한국어",
   English: "영어",
   Chinese: "중국어",

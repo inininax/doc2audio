@@ -18,8 +18,10 @@ from fastapi.staticfiles import StaticFiles
 
 from doc2audio.catalog import CATALOG, get_model, missing_files, public_models, validate_options
 from doc2audio.errors import Doc2AudioError
+from doc2audio.model_lock import model_lock
 from doc2audio.paths import data_dir, workspace_root
 
+from .model_storage import ACTIVE_MODEL_REASON, checked_path, remove_model_files, storage_info
 from .routes import DocumentRoute
 from .runner import Runner
 from .store import Store
@@ -42,7 +44,7 @@ def create_app(root: Path | None = None, *, start_worker=True, web_dir: Path | N
             if start_worker:
                 runner.close()
 
-    app = FastAPI(title="doc2audio local API", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="DOC2AUDIO local API", version="0.2.0", lifespan=lifespan)
     app.router.route_class = DocumentRoute
     app.state.store = store
     app.state.runner = runner
@@ -119,7 +121,51 @@ def create_app(root: Path | None = None, *, start_worker=True, web_dir: Path | N
 
     @app.get("/api/models")
     def models():
-        return {"items": public_models(), "reviewed_at": CATALOG["reviewed_at"]}
+        with store.connection() as db:
+            active = {
+                row[0]
+                for row in db.execute(
+                    "SELECT DISTINCT model_id FROM jobs "
+                    "WHERE status IN ('queued','running','cancelling')"
+                )
+            }
+        items = public_models()
+        for item in items:
+            item["storage"] = storage_info(item["id"], store.root, active=item["id"] in active)
+        return {"items": items, "reviewed_at": CATALOG["reviewed_at"]}
+
+    @app.post("/api/models/{model_id}/delete")
+    def delete_model(model_id: str):
+        get_model(model_id)
+        with store.connection() as db:
+            # Registration, retries and worker claims use this same SQLite writer lock.
+            db.execute("BEGIN IMMEDIATE")
+            active = db.execute(
+                "SELECT 1 FROM jobs WHERE model_id=? "
+                "AND status IN ('queued','running','cancelling') LIMIT 1",
+                (model_id,),
+            ).fetchone()
+            if active:
+                raise HTTPException(409, ACTIVE_MODEL_REASON)
+            try:
+                path = checked_path(model_id, store.root)
+                if not path.exists():
+                    # An installer takes its lease before creating the model folder.
+                    with model_lock(path, exclusive=True, create=False):
+                        return {"deleted": True, "freed_bytes": 0}
+                with model_lock(path, exclusive=True):
+                    freed = remove_model_files(model_id, store.root)
+            except Doc2AudioError as exc:
+                raise HTTPException(409, str(exc)) from exc
+            except OSError as exc:
+                raise HTTPException(
+                    409, "모델 파일을 삭제하지 못했습니다. 저장 위치와 권한을 확인하세요."
+                ) from exc
+        return {"deleted": True, "freed_bytes": freed}
+
+    def require_installed(model_id):
+        if missing_files(model_id):
+            raise HTTPException(409, "먼저 선택한 모델을 다운로드하세요.")
 
     @app.post("/api/models/{model_id}/download", status_code=202)
     def download(model_id: str):
@@ -167,8 +213,7 @@ def create_app(root: Path | None = None, *, start_worker=True, web_dir: Path | N
             raise HTTPException(422, "제목 또는 페이지 범위가 너무 깁니다.")
         if bool(file and file.filename) == bool(text.strip()):
             raise HTTPException(422, "문서 파일 또는 텍스트 중 하나를 입력하세요.")
-        if missing_files(model_id):
-            raise HTTPException(409, "먼저 선택한 모델을 다운로드하세요.")
+        require_installed(model_id)
         if not shutil.which("ffmpeg"):
             raise HTTPException(409, "ffmpeg를 설치한 뒤 서버를 다시 실행하세요.")
         job_id = uuid.uuid4().hex
@@ -203,6 +248,8 @@ def create_app(root: Path | None = None, *, start_worker=True, web_dir: Path | N
                 source=str(source),
                 options={"voice": voice, "pages": pages.strip() or None, "ocr": ocr},
                 job_id=job_id,
+                # Uploading can take time; recheck under the queue/delete transaction.
+                validate=lambda: require_installed(model_id),
             )
         except BaseException:
             # Request cancellation also abandons this unregistered source copy.
@@ -242,6 +289,9 @@ def create_app(root: Path | None = None, *, start_worker=True, web_dir: Path | N
             result=None,
             attempt=job["attempt"] + 1,
             message="다시 대기열에 등록했습니다.",
+            validate=lambda current: (
+                require_installed(current["model_id"]) if current["kind"] == "conversion" else None
+            ),
         ):
             raise HTTPException(409, "실패하거나 중단된 작업만 재시도할 수 있습니다.")
         return public_job(find(job_id))

@@ -121,7 +121,7 @@ def encode_audio(
             "-metadata",
             f"title={destination.stem}",
             "-metadata",
-            "comment=AI narration / doc2audio",
+            "comment=AI narration / DOC2AUDIO",
             str(encoded),
         ]
         completed = subprocess.run(command, capture_output=True, text=True, check=False)

@@ -132,6 +132,7 @@ npm run preview
 | --- | --- |
 | `.wasm` 응답 | `Content-Type: application/wasm` |
 | `.js`, `.mjs`, `sw.js` 응답 | JavaScript MIME 형식 |
+| `.webmanifest` 응답 | `Content-Type: application/manifest+json` |
 | `.traineddata.gz` 응답 | OCR 데이터 파일 그대로 제공. 확장자만 보고 `Content-Encoding: gzip`을 붙이지 않음 |
 | `index.html`, `sw.js` 캐시 | 새 버전을 확인할 수 있도록 `Cache-Control: no-cache` 권장 |
 | 없는 정적 파일 요청 | HTML로 바꾸어 응답하지 말고 404 반환 |
@@ -143,6 +144,14 @@ DOC2AUDIO_BASE=/doc2audio/ npm run build
 ```
 
 생성된 `dist/` 전체를 해당 경로에 올립니다. 화면 이동은 `#new`, `#history` 등의 해시를 사용하므로 별도 페이지 라우팅은 필요 없습니다.
+
+파비콘, Apple 터치 아이콘, 앱 설치용 아이콘·매니페스트, 링크 공유 이미지가 빌드에 포함됩니다. **공유 미리보기까지 사용하려면** 빌드할 때 `DOC2AUDIO_SITE_URL`에 하위 경로까지 포함한 실제 HTTPS 사이트 주소를 지정하세요. 주소의 경로는 `DOC2AUDIO_BASE`와 같아야 합니다. 예를 들어 하위 경로 배포 명령은 다음과 같습니다. `example.com`을 실제 도메인으로 바꾸세요.
+
+```bash
+DOC2AUDIO_BASE=/doc2audio/ DOC2AUDIO_SITE_URL=https://example.com/doc2audio/ npm run build
+```
+
+도메인 루트에 배포한다면 `DOC2AUDIO_BASE`를 생략하고 `DOC2AUDIO_SITE_URL=https://실제도메인/`으로 설정합니다. 사이트 주소를 지정하면 공유 이미지와 대표 페이지 주소가 절대 URL로 기록됩니다. 미지정 시 웹 화면·아이콘은 동작하지만, 공유 서비스가 상대 이미지 주소를 표시하지 못할 수 있습니다. 브라우저의 앱 설치 기능은 지원 환경에서 사용할 수 있으며, 오프라인 준비와 실행 조건은 [사용법](usage.md)을 따릅니다.
 
 배포 후 모델 다운로드와 샘플 문서 변환을 직접 확인하세요. 이용자 브라우저가 Hugging Face에서 모델을 받으므로 호스팅의 보안 정책이나 이용자 네트워크가 이 연결을 차단하면 다운로드할 수 없습니다. 문서와 생성 음성은 이 다운로드 요청에 포함되지 않습니다.
 

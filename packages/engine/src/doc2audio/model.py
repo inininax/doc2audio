@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from .errors import Doc2AudioError, GenerationLimitError
+from .model_lock import model_instance_lock, model_lock
 from .paths import models_dir
 from .text import split_text
 
@@ -48,6 +49,11 @@ def missing_model_files(path: Path) -> list[str]:
 
 
 def ensure_model(path: Path, *, offline: bool = False) -> Path:
+    with model_lock(path):
+        return _ensure_model(path, offline=offline)
+
+
+def _ensure_model(path: Path, *, offline: bool = False) -> Path:
     require_platform()
     path = path.expanduser().resolve()
     missing = missing_model_files(path)
@@ -87,6 +93,7 @@ def ensure_model(path: Path, *, offline: bool = False) -> Path:
 
 
 class QwenNarrator:
+    @model_instance_lock
     def __init__(
         self,
         path: Path,
@@ -95,6 +102,7 @@ class QwenNarrator:
         instruct: str = DEFAULT_INSTRUCT,
         language: str = "Korean",
         temperature: float = 0.7,
+        top_k: int = 50,
         top_p: float = 0.9,
         repetition_penalty: float = 1.05,
     ):
@@ -118,14 +126,26 @@ class QwenNarrator:
         self.instruct = instruct
         self.language = language
         self.temperature = temperature
+        self.top_k = top_k
         self.top_p = top_p
         self.repetition_penalty = repetition_penalty
 
     def generate(self, text: str, seed: int, _depth: int = 0):
         import numpy as np
 
+        pieces = []
+        for audio, rate in self.generate_segments(text, seed, _depth):
+            if rate != 24000:
+                raise Doc2AudioError("재생성 구간의 샘플레이트가 다릅니다.")
+            if pieces:
+                pieces.append(np.zeros(4800, dtype=np.float32))
+            pieces.append(audio)
+        return np.concatenate(pieces), 24000
+
+    def generate_segments(self, text: str, seed: int, _depth: int = 0):
+        """Keep adaptive-retry pieces separate for pause-independent caching."""
         try:
-            return self._generate_once(text, seed)
+            return [self._generate_once(text, seed)]
         except GenerationLimitError:
             # AR speech models can occasionally loop. Never publish that partial
             # audio; retry with smaller inputs while retaining every source word.
@@ -134,17 +154,14 @@ class QwenNarrator:
                 print("음성 길이 제한에 도달해 해당 구간을 나누어 재생성합니다.", file=sys.stderr)
                 pieces = []
                 for index, part in enumerate(parts):
-                    audio, rate = self.generate(
-                        part, (seed + 104729 * (index + 1)) % 2**32, _depth + 1
+                    pieces.extend(
+                        self.generate_segments(
+                            part, (seed + 104729 * (index + 1)) % 2**32, _depth + 1
+                        )
                     )
-                    if rate != 24000:
-                        raise Doc2AudioError("재생성 구간의 샘플레이트가 다릅니다.") from None
-                    if pieces:
-                        pieces.append(np.zeros(4800, dtype=np.float32))
-                    pieces.append(audio)
-                return np.concatenate(pieces), 24000
+                return pieces
             print("음성 종료를 확인하지 못해 다른 seed로 한 번 재시도합니다.", file=sys.stderr)
-            return self._generate_once(text, (seed + 7919) % 2**32)
+            return [self._generate_once(text, (seed + 7919) % 2**32)]
 
     def _generate_once(self, text: str, seed: int):
         import mlx.core as mx
@@ -160,6 +177,7 @@ class QwenNarrator:
             language=self.language,
             instruct=self.instruct,
             temperature=self.temperature,
+            top_k=self.top_k,
             top_p=self.top_p,
             repetition_penalty=self.repetition_penalty,
             max_tokens=max_tokens,

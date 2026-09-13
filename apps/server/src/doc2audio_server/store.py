@@ -59,10 +59,14 @@ class Store:
             value[key] = json.loads(value[key]) if value[key] else None
         return value
 
-    def create(self, *, kind, model_id, title, source=None, options=None, job_id=None):
+    def create(
+        self, *, kind, model_id, title, source=None, options=None, job_id=None, validate=None
+    ):
         job_id = job_id or uuid.uuid4().hex
         with self.connection() as db:
             db.execute("BEGIN IMMEDIATE")
+            if validate:
+                validate()
             if kind == "download":
                 existing = db.execute(
                     "SELECT * FROM jobs WHERE kind='download' AND model_id=? "
@@ -119,7 +123,7 @@ class Store:
                 )
             ]
 
-    def update(self, job_id, *, expected=None, **fields):
+    def update(self, job_id, *, expected=None, validate=None, **fields):
         allowed = {"status", "progress", "message", "error", "result", "attempt"}
         if not fields.keys() <= allowed:
             raise ValueError("Unsupported job update")
@@ -132,6 +136,11 @@ class Store:
             query += " AND status IN (" + ",".join("?" for _ in expected) + ")"
             args.extend(expected)
         with self.connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if validate:
+                row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+                if row and (not expected or row["status"] in expected):
+                    validate(self.decode(row))
             changed = db.execute(query, args).rowcount > 0
             if changed and fields.get("message"):
                 db.execute(

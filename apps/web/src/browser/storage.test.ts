@@ -1,15 +1,18 @@
 import "fake-indexeddb/auto";
 import { deleteDB, openDB } from "idb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { downloadModel } from "./download";
 import {
   DATABASE_NAME,
   closeStorage,
   commitAsset,
   createJob,
   deleteJob,
+  deleteModelAssets,
   getJob,
   listJobs,
   modelInstalled,
+  modelStorageInfo,
   readAsset,
   readAssetParts,
   readChunk,
@@ -231,6 +234,141 @@ describe("persistent job checkpoints", () => {
 });
 
 describe("verified model assets", () => {
+  it("reports and deletes only this model's blobs across revisions, preserving documents and audio", async () => {
+    await createJob(job());
+    await saveChunk("job-1", 0, pcm(), 24000, "run-a");
+    await saveChunk("job-1", 1, pcm(), 24000, "run-a");
+    await saveOutput("job-1", new Blob(["finished MP3"]), {}, "run-a");
+    await commitAsset("fixture.onnx", new Blob([assetBytes]));
+    await saveAssetPart(
+      "fixture.onnx",
+      0,
+      new Blob([assetBytes.subarray(0, 2)]),
+    );
+    const db = await openDB(DATABASE_NAME);
+    const original = await db.get(
+      "assets",
+      `${fixture.id}/${fixture.revision}/fixture.onnx`,
+    );
+    const oldKey = `${fixture.id}/old-revision/legacy.onnx`;
+    const otherKey = `${fixture.id}-other/revision/other.onnx`;
+    await db.put("assets", {
+      ...original,
+      key: oldKey,
+      size: 999,
+      blob: new Blob(["old"]),
+    });
+    await db.put("assets", {
+      ...original,
+      key: otherKey,
+      blob: new Blob(["other"]),
+    });
+    await db.put("assetParts", {
+      key: oldKey,
+      offset: 0,
+      blob: new Blob(["old part"]),
+    });
+    await db.put("assetParts", {
+      key: otherKey,
+      offset: 0,
+      blob: new Blob(["keep part"]),
+    });
+    const before = await modelStorageInfo("https://doc2audio.test");
+    expect(before).toMatchObject({
+      installed: true,
+      storage: {
+        kind: "indexeddb",
+        used_bytes: 17,
+        has_data: true,
+        can_delete: true,
+      },
+    });
+    expect(before.storage.location).toContain(
+      "https://doc2audio.test → IndexedDB → doc2audio-browser → assets / assetParts",
+    );
+    expect(await deleteModelAssets()).toBe(17);
+    expect(await modelStorageInfo("https://doc2audio.test")).toMatchObject({
+      installed: false,
+      storage: { used_bytes: 0, has_data: false, can_delete: false },
+    });
+    expect(await db.getAllKeys("assets")).toEqual([otherKey]);
+    expect(await db.getAllKeys("assetParts")).toEqual([[otherKey, 0]]);
+    db.close();
+    await closeStorage();
+    const retained = (await getJob("job-1"))!;
+    expect(await retained.source!.text()).toBe("문서 원본");
+    expect(await retained.output!.text()).toBe("finished MP3");
+    expect((await readChunk("job-1", 0))!.samples).toEqual(pcm());
+    expect(await deleteModelAssets()).toBe(0);
+    const fetchFixture = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(assetBytes, {
+        status: 206,
+        headers: { "Content-Range": "bytes 0-3/4", "Content-Length": "4" },
+      }),
+    );
+    await downloadModel(new AbortController().signal, async () => {});
+    expect(fetchFixture).toHaveBeenCalledTimes(1);
+    expect(await modelInstalled()).toBe(true);
+    expect(new Uint8Array(await readAsset("fixture.onnx"))).toEqual(assetBytes);
+  });
+
+  it("can free an interrupted download that has no installed model", async () => {
+    await saveAssetPart(
+      "fixture.onnx",
+      0,
+      new Blob([assetBytes.subarray(0, 2)]),
+    );
+    expect(await modelStorageInfo("https://doc2audio.test")).toMatchObject({
+      installed: false,
+      storage: { used_bytes: 2, has_data: true, can_delete: true },
+    });
+    expect(await deleteModelAssets()).toBe(2);
+    expect(await readAssetParts("fixture.onnx")).toEqual([]);
+  });
+
+  it.each(["queued", "running", "cancelling"])(
+    "protects assets from a %s job outside the first history page, including another connection's resume",
+    async (status) => {
+      await commitAsset("fixture.onnx", new Blob([assetBytes]));
+      await saveAssetPart("fixture.onnx", 0, new Blob([assetBytes]));
+      for (let index = 0; index < 55; index++)
+        await createJob({ ...job(`history-${index}`), status: "completed" });
+      await createJob({
+        ...job("older-off-page"),
+        status: "paused",
+        created_at: "2020-01-01T00:00:00Z",
+      });
+      const otherTab = await openDB(DATABASE_NAME);
+      const resumed = await otherTab.get("jobs", "older-off-page");
+      await otherTab.put("jobs", { ...resumed, status });
+      otherTab.close();
+      const info = await modelStorageInfo("https://doc2audio.test");
+      expect(info.storage.can_delete).toBe(false);
+      expect(info.storage.delete_blocked_reason).toContain("일시정지");
+      await expect(deleteModelAssets()).rejects.toThrow("일시정지");
+      expect(await modelInstalled()).toBe(true);
+      expect(await readAssetParts("fixture.onnx")).toHaveLength(1);
+      expect(await listJobs()).toHaveLength(56);
+    },
+  );
+
+  it("rolls back complete-asset removal if deleting a partial blob fails", async () => {
+    await commitAsset("fixture.onnx", new Blob([assetBytes]));
+    await saveAssetPart("fixture.onnx", 0, new Blob([assetBytes]));
+    const original = IDBCursor.prototype.delete;
+    let deletions = 0;
+    vi.spyOn(IDBCursor.prototype, "delete").mockImplementation(function (
+      this: IDBCursor,
+    ) {
+      if (++deletions === 2)
+        throw new DOMException("Simulated delete failure", "UnknownError");
+      return original.call(this);
+    });
+    await expect(deleteModelAssets()).rejects.toThrow("delete failure");
+    expect(await modelInstalled()).toBe(true);
+    expect(await readAssetParts("fixture.onnx")).toHaveLength(1);
+  });
+
   it("retains download checkpoints when final publication cannot commit", async () => {
     await saveAssetPart("fixture.onnx", 0, new Blob([assetBytes]));
     const original = IDBObjectStore.prototype.delete;

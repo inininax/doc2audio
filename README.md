@@ -1,4 +1,6 @@
-# doc2audio
+<img src="apps/web/public/brand/logo-128.png" alt="" width="64" height="64">
+
+# DOC2AUDIO
 
 PDF·Word·텍스트 문서를 내 컴퓨터에서 읽어 MP3로 만드는 프로그램입니다. 문서와 생성 음성을 외부 변환 서버로 보내지 않습니다.
 

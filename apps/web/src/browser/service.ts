@@ -15,6 +15,8 @@ import {
   saveOutput,
   deleteJob,
   modelInstalled,
+  modelStorageInfo,
+  deleteModelAssets,
   storageInfo,
   requestPersistence,
   type StoredJob,
@@ -442,8 +444,9 @@ export async function browserRequest<T>(
       storage: await storageInfo(),
     } satisfies Health;
   } else if (!post && parts[0] === "models") {
+    const stored = await modelStorageInfo(location.origin);
     value = {
-      items: [browserModel(await modelInstalled())],
+      items: [{ ...browserModel(stored.installed), storage: stored.storage }],
       reviewed_at: manifest.reviewed_at,
     };
   } else if (!post && parts[0] === "jobs") {
@@ -476,6 +479,25 @@ export async function browserRequest<T>(
     }
   } else if (post && parts[0] === "storage" && parts[1] === "persist") {
     value = { persistent: await requestPersistence() };
+  } else if (post && parts[0] === "models" && parts[2] === "delete") {
+    if (parts[1] !== manifest.id)
+      throw new Error("이 브라우저에서 지원하지 않는 모델입니다.");
+    await navigator.locks.request("doc2audio-job-submit", async () => {
+      // Pausing updates the ledger before the worker has fully unwound. Holding
+      // the runner lock prevents an old download from restoring deleted parts.
+      await navigator.locks.request(
+        "doc2audio-browser-runner",
+        { ifAvailable: true },
+        async (lock) => {
+          if (!lock)
+            throw new Error(
+              "모델을 사용하는 작업이 실행 중이거나 종료 중입니다. 먼저 일시정지하거나 취소한 뒤 잠시 후 다시 시도하세요.",
+            );
+          value = { deleted: true, freed_bytes: await deleteModelAssets() };
+        },
+      );
+    });
+    notify();
   } else if (post && parts[0] === "models" && parts[2] === "download") {
     if (parts[1] !== manifest.id)
       throw new Error("이 브라우저에서 지원하지 않는 모델입니다.");
@@ -499,8 +521,6 @@ export async function browserRequest<T>(
     const body = init.body;
     if (body.get("model_id") !== manifest.id)
       throw new Error("이 브라우저에서 지원하지 않는 모델입니다.");
-    if (!(await modelInstalled()))
-      throw new Error("모델 보관함에서 모델을 먼저 다운로드하세요.");
     const voice = validateOptions(
       JSON.parse(String(body.get("options") || "{}")),
     );
@@ -533,8 +553,12 @@ export async function browserRequest<T>(
       filename,
       options: { voice, pages, ocr },
     };
-    await createJob(job);
-    value = toPublic(job);
+    await navigator.locks.request("doc2audio-job-submit", async () => {
+      if (!(await modelInstalled()))
+        throw new Error("모델 보관함에서 모델을 먼저 다운로드하세요.");
+      await createJob(job);
+      value = toPublic(job);
+    });
     notify();
     void kick();
   } else if (post && parts[0] === "jobs" && parts[1]) {
@@ -559,19 +583,25 @@ export async function browserRequest<T>(
         { statuses: ACTIVE },
       );
     } else if (command === "retry" || command === "resume") {
-      if (
-        !(await updateJob(
-          id,
-          {
-            status: "queued",
-            runToken: "",
-            error: null,
-            message: "저장된 지점부터 이어서 실행합니다.",
-          },
-          { statuses: ["paused", "failed", "cancelled", "interrupted"] },
-        ))
-      )
-        throw new Error("일시정지 또는 중단된 작업만 이어갈 수 있습니다.");
+      await navigator.locks.request("doc2audio-job-submit", async () => {
+        if (job.kind === "conversion" && !(await modelInstalled()))
+          throw new Error(
+            "모델 보관함에서 모델을 다시 다운로드한 뒤 이어가세요.",
+          );
+        if (
+          !(await updateJob(
+            id,
+            {
+              status: "queued",
+              runToken: "",
+              error: null,
+              message: "저장된 지점부터 이어서 실행합니다.",
+            },
+            { statuses: ["paused", "failed", "cancelled", "interrupted"] },
+          ))
+        )
+          throw new Error("일시정지 또는 중단된 작업만 이어갈 수 있습니다.");
+      });
     } else if (command === "delete") {
       if (ACTIVE.includes(job.status))
         throw new Error("작업을 먼저 일시정지하거나 취소하세요.");

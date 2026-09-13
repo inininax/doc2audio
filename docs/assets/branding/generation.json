@@ -1,0 +1,17 @@
+{
+  "generator": "OpenAI built-in image_gen (GPT Image)",
+  "logo": {
+    "source": "logo-master.png",
+    "prompt": "Use case: logo-brand. Asset type: production master app icon for DOC2AUDIO, a private document-to-speech web application. Create one beautiful, memorable, minimal geometric logo mark: a white document silhouette whose rounded outer right edge subtly reads as a capital D; three bold royal-blue vertical audio waveform cutouts within the page, with a precise folded upper-right corner. Strong, immediately readable document-to-audio idea, expertly balanced negative space. Existing app palette uses royal blue #2563eb, white and slate; match it. Square 1024x1024 canvas, completely flat solid royal-blue #2563eb background filling all edges, crisp white mark centered inside the middle 62% of the canvas so it works in round and square app masks. Sophisticated Swiss graphic design, optically balanced, very few shapes, clean flat vector-like edges, recognizable at 16 pixels. No words, no letters as text, no labels, no typography, no surrounding mockup, no shadows, no gradients, no texture, no watermark, no border, no rounded outer tile corners. Deliver one finished logo, not a sheet of alternatives.",
+    "refinement_prompt": "Use case: style-transfer. Edit target: the supplied DOC2AUDIO icon. Preserve the recognisable document-shaped D silhouette, its folded top-right corner, and the three audio bars. Correct the rendering to a perfectly flat TWO-COLOR OPAQUE app icon: pure white #ffffff page mark, pure royal blue #2563eb background filling the entire square from edge to edge, and exactly the same royal blue inside the three waveform bars. Remove ALL transparency, transparent holes, shadows, gray outlines, gradients, bevels, glowing edges and texture. The whole background MUST be actual visible blue pixels, NOT transparent. This is an opaque square app tile image, not a background-removed cutout. Crisp professionally drawn flat geometrical edges. Center the full white symbol within the central 62% of the square for safe app masking. No typography, no additional shapes, no outer rounded corners. Output a finished 1024x1024 opaque blue square."
+  },
+  "social": {
+    "source": "social-master.png",
+    "web_export": "../../../apps/web/public/brand/social-card.png",
+    "prompt": "Use case: precise-object-edit. Image 1 is the edit target: DOC2AUDIO social sharing card. Image 2 is only the NEW LOGO SHAPE reference; its gray checkerboard is NOT part of the logo and must not be copied. Change ONLY the left logo in Image 1: remove its blue square tile entirely, and replace the white document mark with a royal-blue document/D shape, lighter blue folded upper-right triangle and three empty waveform slots revealing the card background. Match the blue document silhouette of Image 2. Keep all text exactly unchanged: DOC2AUDIO and 나만의 오디오 서재. Keep the original wide composition, typography, wordmark dark slate color, size, positioning and pale cool-white background. Make the logo clean and flat, no shadows, no texture, no blue square background, no checkerboard. Output one polished wide opaque sharing card, 1200x630 ratio, suitable for a minimal document-to-speech website."
+  },
+  "exports": {
+    "method": "Logo PNG files are size exports of the approved master; favicon.ico contains 16, 32 and 48px PNG frames. The maskable icon uses the same opaque master and keeps the mark inside the central safe circle.",
+    "web_directory": "../../../apps/web/public/"
+  }
+}

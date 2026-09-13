@@ -19,7 +19,7 @@ export function speechOptions(options: Record<string, string | number>) {
   const speaker = String(options.speaker ?? "F1");
   const language = String(options.language ?? "ko");
   const steps = Number(options.total_steps ?? 8);
-  const speed = Number(options.speech_speed ?? 1.05);
+  const speed = Number(options.speech_speed ?? 1);
   if (!/^[FM][1-5]$/.test(speaker))
     throw new Error("지원하지 않는 목소리입니다.");
   if (!(LANGUAGES as readonly string[]).includes(language))

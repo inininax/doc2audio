@@ -70,7 +70,7 @@ export default function RuntimeHelp({
             </Typography>
           )}
           <Typography variant="body2">
-            doc2audio 설치와 웹 화면 준비를 마친 Mac에서 프로젝트 폴더의
+            DOC2AUDIO 설치와 웹 화면 준비를 마친 Mac에서 프로젝트 폴더의
             터미널로 실행하세요.
           </Typography>
           <Box

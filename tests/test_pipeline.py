@@ -230,3 +230,81 @@ def test_pronunciation_mapping_with_no_spoken_text_fails_before_loading_model(tm
             narrator_factory=unexpected_model,
             progress=lambda _: None,
         )
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg required")
+def test_internal_segments_preserve_order_and_reuse_after_pause_speed_changes(
+    tmp_path, monkeypatch
+):
+    import doc2audio.pipeline as pipeline
+
+    source = tmp_path / "source.txt"
+    source.write_text("첫 문장입니다.\n\n마지막 문장입니다.")
+    output = tmp_path / "segments.wav"
+    calls, encoded = [], []
+
+    class SegmentedNarrator:
+        def generate_segments(self, text, seed):
+            calls.append((text, seed))
+            return [
+                ((0.1 * np.sin(np.arange(2400) * 2 * np.pi * hz / 24000)).astype(np.float32), 24000)
+                for hz in (300 + seed, 600 + seed)
+            ]
+
+    encode = pipeline.encode_audio
+
+    def capture(paths, *args, **kwargs):
+        encoded.append([path.name for path in paths])
+        return encode(paths, *args, **kwargs)
+
+    monkeypatch.setattr(pipeline, "encode_audio", capture)
+    arguments = dict(narrator_factory=SegmentedNarrator, progress=lambda _: None, overwrite=True)
+    initial = convert_document(source, output, generation_options={"pause": 0.3}, **arguments)
+    assert initial["chunks"] == 2 and initial["reused_chunks"] == 0
+    assert initial["seconds"] == pytest.approx(1.3, abs=0.01)
+    assert encoded[-1] == ["00000.wav", "00000-001.wav", "00001.wav", "00001-001.wav"]
+    assert len(calls) == 2
+    no_pause = convert_document(source, output, generation_options={"pause": 0}, **arguments)
+    assert no_pause["reused_chunks"] == 2 and len(calls) == 2
+    assert no_pause["seconds"] == pytest.approx(0.4, abs=0.01)
+    fast = convert_document(
+        source, output, generation_options={"pause": 0.4, "speed": 2}, **arguments
+    )
+    assert fast["reused_chunks"] == 2 and len(calls) == 2
+    assert fast["seconds"] == pytest.approx(0.8, abs=0.01)
+    assert len(set(map(tuple, encoded))) == 1
+    cache = next(tmp_path.glob(".doc2audio/*"))
+    last = (cache / "00001-001.wav").read_bytes()
+    (cache / "00000-001.wav").write_bytes(b"broken")
+    repaired = convert_document(source, output, generation_options={"pause": 0}, **arguments)
+    assert repaired["reused_chunks"] == 1 and len(calls) == 3
+    assert calls[-1][0] == "첫 문장입니다."
+    assert (cache / "00001-001.wav").read_bytes() == last
+    assert repaired["seconds"] == pytest.approx(0.4, abs=0.01)
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg required")
+def test_incomplete_internal_segments_are_never_marked_completed(tmp_path):
+    source = tmp_path / "source.txt"
+    source.write_text("본문입니다.")
+
+    class InterruptedSegments:
+        def generate_segments(self, text, seed):
+            yield np.full(2400, 0.1, dtype=np.float32), 24000
+            raise Doc2AudioError("test segment interruption")
+
+    with pytest.raises(Doc2AudioError, match="segment interruption"):
+        convert_document(
+            source,
+            tmp_path / "output.wav",
+            narrator_factory=InterruptedSegments,
+            progress=lambda _: None,
+        )
+    cache = next(tmp_path.glob(".doc2audio/*"))
+    manifest = json.loads((cache / "manifest.json").read_text())
+    assert manifest["completed"] == {}
+    assert not (tmp_path / "output.wav").exists()
+    result = convert_document(
+        source, tmp_path / "output.wav", narrator_factory=SyntheticNarrator, progress=lambda _: None
+    )
+    assert result["reused_chunks"] == 0 and result["chunks"] == 1

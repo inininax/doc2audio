@@ -1,0 +1,32 @@
+{
+  "id": "",
+  "name": "DOC2AUDIO",
+  "short_name": "DOC2AUDIO",
+  "description": "문서를 내 PC에서 음성으로 변환하는 나만의 오디오 서재",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6fa",
+  "theme_color": "#f4f6fa",
+  "icons": [
+    {
+      "src": "brand/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "brand/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

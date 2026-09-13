@@ -8,12 +8,19 @@ from pathlib import Path
 
 from .catalog import get_model, missing_files, model_path, validate_options
 from .errors import Doc2AudioError
+from .model_lock import model_instance_lock, model_lock
 from .text import split_text
 
 
 def install_model(
     model_id: str, progress=lambda message, fraction: None, path: Path | None = None
 ) -> Path:
+    path = (path or model_path(model_id)).expanduser().resolve()
+    with model_lock(path):
+        return _install_model(model_id, progress, path)
+
+
+def _install_model(model_id: str, progress, path: Path) -> Path:
     from huggingface_hub import hf_hub_download
 
     spec = get_model(model_id)
@@ -51,6 +58,7 @@ def install_model(
 
 
 class SupertonicNarrator:
+    @model_instance_lock
     def __init__(self, path: Path, options: dict):
         from supertonic import TTS
 
@@ -66,6 +74,17 @@ class SupertonicNarrator:
         self.style = self.model.get_voice_style(options["speaker"])
 
     def generate(self, text: str, seed: int):
+        import numpy as np
+
+        pieces = []
+        for audio, _ in self.generate_segments(text, seed):
+            if pieces:
+                pieces.append(np.zeros(7200, dtype=np.float32))
+            pieces.append(audio)
+        return np.concatenate(pieces), 24000
+
+    def generate_segments(self, text: str, seed: int):
+        """Return model-call boundaries so final encoding owns all inserted pauses."""
         from math import gcd
 
         import numpy as np
@@ -95,17 +114,21 @@ class SupertonicNarrator:
             # rounding discrepancy, but never publish a genuinely truncated part.
             if frames < 1 or frames > samples.size + 1:
                 raise Doc2AudioError("모델이 불완전한 음성을 반환했습니다. 다시 시도하세요.")
-            if pieces:
-                pieces.append(np.zeros(round(rate * 0.3), dtype=np.float32))
-            pieces.append(samples[:frames])
+            divisor = gcd(rate, 24000)
+            audio = resample_poly(samples[:frames], 24000 // divisor, rate // divisor)
+            pieces.append((audio.astype(np.float32), 24000))
         if not pieces:
             raise Doc2AudioError("읽을 본문이 없습니다.")
-        samples = np.concatenate(pieces)
-        divisor = gcd(rate, 24000)
-        return resample_poly(samples, 24000 // divisor, rate // divisor).astype(np.float32), 24000
+        return pieces
 
 
 def create_narrator(model_id: str, options: dict, *, offline=True, path=None):
+    path = (path or model_path(model_id)).expanduser().resolve()
+    with model_lock(path):
+        return _create_narrator(model_id, options, offline=offline, path=path)
+
+
+def _create_narrator(model_id: str, options: dict, *, offline=True, path=None):
     from .model import QwenNarrator
 
     options = validate_options(model_id, options)
@@ -125,6 +148,7 @@ def create_narrator(model_id: str, options: dict, *, offline=True, path=None):
         instruct=options.get("instruct", ""),
         language=options["language"],
         temperature=options["temperature"],
+        top_k=options["top_k"],
         top_p=options["top_p"],
         repetition_penalty=options["repetition_penalty"],
     )

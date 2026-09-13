@@ -11,6 +11,7 @@ from .text import is_utf8_text
 CATALOG = json.loads(Path(__file__).with_suffix(".json").read_text())
 DEFAULT_MODEL = "qwen3-1.7b"
 QWEN_LANGUAGES = [
+    "auto",
     "Korean",
     "English",
     "Chinese",
@@ -50,11 +51,14 @@ def model_path(model_id: str) -> Path:
 
 def missing_files(model_id: str, path: Path | None = None) -> list[str]:
     path = path or model_path(model_id)
-    return [
-        name
-        for name, size in get_model(model_id)["files"].items()
-        if not (path / name).is_file() or (path / name).stat().st_size != size
-    ]
+    missing = []
+    for name, size in get_model(model_id)["files"].items():
+        try:
+            if not (path / name).is_file() or (path / name).stat().st_size != size:
+                missing.append(name)
+        except OSError:
+            missing.append(name)
+    return missing
 
 
 def field(key, label, kind, default, **kwargs):
@@ -68,6 +72,16 @@ def option_schema(model_id: str) -> list[dict]:
             field("speaker", "목소리", "select", "Sohee", choices=QWEN_VOICES),
             field("language", "언어", "select", "Korean", choices=QWEN_LANGUAGES),
             field("temperature", "표현 다양성", "number", 0.7, min=0.1, max=1.5, step=0.05),
+            field(
+                "top_k",
+                "음성 토큰 후보 수 (top-k)",
+                "integer",
+                50,
+                min=0,
+                max=1000,
+                step=1,
+                help="작을수록 후보를 좁힙니다. 0이면 후보 수를 제한하지 않습니다.",
+            ),
             field("top_p", "샘플링 범위 (top-p)", "number", 0.9, min=0.1, max=1, step=0.05),
             field("repetition_penalty", "반복 억제", "number", 1.05, min=1, max=2, step=0.05),
         ]
@@ -106,7 +120,7 @@ def option_schema(model_id: str) -> list[dict]:
                 "speech_speed",
                 "모델 발화 속도",
                 "number",
-                1.05,
+                1,
                 min=0.7,
                 max=2,
                 step=0.05,

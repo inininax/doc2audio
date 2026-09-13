@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { request, type Health, type Job } from "./api";
+import { request, type Health, type Job, type Model } from "./api";
 import { browserModel } from "./browser/catalog";
 
 const mode = vi.hoisted(() => ({ browser: true }));
@@ -100,6 +100,71 @@ function api(handler: (path: string, init?: RequestInit) => unknown) {
     return (await handler(path, init)) as never;
   });
 }
+
+describe("model deletion", () => {
+  it.each(["success", "blocked"])(
+    "handles a %s model deletion through the shared action flow",
+    async (outcome) => {
+      window.history.replaceState(null, "", "/#models");
+      let current: Model = {
+        ...browserModel(true),
+        name: "삭제 테스트 모델",
+        storage: {
+          kind: "indexeddb",
+          location: "https://doc2audio.test · IndexedDB",
+          used_bytes: 123,
+          has_data: true,
+          can_delete: true,
+        },
+      };
+      const pending = deferred<void>();
+      const deletion = vi.fn(async () => {
+        await pending.promise;
+        if (outcome === "blocked")
+          throw new Error("다른 탭에서 변환 중이라 삭제할 수 없습니다.");
+        current = {
+          ...current,
+          installed: false,
+          storage: {
+            ...current.storage!,
+            used_bytes: 0,
+            has_data: false,
+            can_delete: false,
+          },
+        };
+        return { deleted: true, freed_bytes: 123 };
+      });
+      vi.mocked(request).mockImplementation(async (path, init) => {
+        if (path === "/models") return { items: [current] } as never;
+        if (path === "/health") return health as never;
+        if (path.startsWith("/jobs?")) return { items: [], total: 0 } as never;
+        if (path === "/models/supertonic-3/delete" && init?.method === "POST")
+          return deletion() as never;
+        throw new Error(`예상하지 못한 요청: ${path}`);
+      });
+      await render();
+      await click("삭제 테스트 모델 모델 삭제");
+      expect(deletion).not.toHaveBeenCalled();
+      await click("삭제하기");
+      expect(deletion).toHaveBeenCalledTimes(1);
+      expect(button("삭제 테스트 모델 모델 삭제").disabled).toBe(true);
+      await click("삭제 테스트 모델 모델 삭제");
+      expect(deletion).toHaveBeenCalledTimes(1);
+      await act(async () => pending.resolve());
+      if (outcome === "success") {
+        expect(container.textContent).toContain("모델을 삭제했습니다");
+        expect(button("모델 다운로드").disabled).toBe(false);
+        expect(container.textContent).toContain("저장 용량 0 B");
+      } else {
+        expect(visibleText('[role="alert"]')).toContain(
+          "다른 탭에서 변환 중이라 삭제할 수 없습니다.",
+        );
+        expect(container.textContent).not.toContain("모델을 삭제했습니다");
+        expect(button("삭제 테스트 모델 모델 삭제").disabled).toBe(false);
+      }
+    },
+  );
+});
 
 describe("job detail request ordering", () => {
   it.each(["resolve", "reject"] as const)(

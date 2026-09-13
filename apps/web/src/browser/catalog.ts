@@ -20,7 +20,7 @@ export const options: Option[] = [
     step: 1,
     help: "단계를 높이면 생성 시간이 늘어납니다.",
   }),
-  field("speech_speed", "모델 발화 속도", "number", 1.05, {
+  field("speech_speed", "모델 발화 속도", "number", 1, {
     min: 0.7,
     max: 2,
     step: 0.05,
@@ -60,7 +60,7 @@ export function validateOptions(value: unknown): VoiceOptions {
     throw new Error("지원하지 않는 음성 설정입니다.");
   return Object.fromEntries(
     options.map((o) => {
-      const v = input[o.key] ?? o.default;
+      const v = Object.hasOwn(input, o.key) ? input[o.key] : o.default;
       const valid =
         o.type === "select"
           ? typeof v === "string" && o.choices!.includes(v)
