@@ -25,6 +25,8 @@
 | Python 검사 | `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest` |
 | Python 패키지 빌드 | `uv build --all-packages` |
 | 실제 모델·서버 검증 | `scripts/verify_models.py`, `scripts/verify_server_runtime.py`, `scripts/verify_runtime.py`를 필요한 범위에서 `uv run python`으로 실행 |
+| 실제 음성 옵션·캐시·발화 속도 검증 | 모델 설치 후 `uv run --offline python scripts/verify_options.py` (한 모델만: `--model supertonic-3`). 결과는 실행별 `output/options/` 하위 폴더에 저장 |
+| 웹 배포 경로·공유 메타데이터 검증 | `node scripts/verify-web-metadata.mjs` (기존 빌드 파일을 변경하지 않음) |
 
 ## 유지할 동작
 

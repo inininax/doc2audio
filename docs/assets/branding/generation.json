@@ -13,5 +13,11 @@
   "exports": {
     "method": "Logo PNG files are size exports of the approved master; favicon.ico contains 16, 32 and 48px PNG frames. The maskable icon uses the same opaque master and keeps the mark inside the central safe circle.",
     "web_directory": "../../../apps/web/public/"
-  }
+  },
+  "drafts": [
+    {
+      "metadata": "drafts/document-color/generation.json",
+      "status": "unfinished; not a production export"
+    }
+  ]
 }
