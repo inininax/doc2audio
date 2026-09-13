@@ -1,0 +1,19 @@
+{
+  "name": "doc2audio-workspace",
+  "version": "0.2.0",
+  "private": true,
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @doc2audio/web",
+    "build": "npm run build --workspace @doc2audio/web",
+    "check": "npm run check --workspace @doc2audio/web",
+    "format:check": "npm run format:check --workspace @doc2audio/web",
+    "preview": "npm run preview --workspace @doc2audio/web",
+    "test:web": "npm run test --workspace @doc2audio/web && node --test scripts/build-web-cache.test.mjs"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

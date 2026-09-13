@@ -42,3 +42,12 @@ output: MP3, mono, 24 kHz, 128 kbps
 모델 리비전은 코드에, Python 의존성은 `uv.lock`에 고정합니다. 기본 지시문은 차분하고 따뜻한 한국어 오디오북 낭독입니다. 문서의 본문을 요약하거나 번역하는 별도 LLM을 사용하지 않습니다. 파일 추출·문장 분할·구간 저장·인코딩을 로컬에서 처리합니다.
 
 품질 확인은 [실행 검증](validation.md)에 구분해 기록합니다. 음성 인식 일치율은 누락·반복 탐지에 도움이 되지만, 사람의 청취 평가나 자연스러움 점수와 같지 않습니다.
+
+## v0.2 웹 카탈로그 추가 (2026-09-13)
+
+웹에서 선택·설치할 모델로 Qwen3-TTS 1.7B와 0.6B CustomVoice 8bit, Supertonic 3를 포함했습니다. Qwen은 한국어 기본 낭독·말투 제어를, Supertonic은 작은 다운로드와 CPU 실행을 기준으로 선택했습니다. 모든 모델의 절대적 순위를 의미하지 않습니다.
+
+- [Qwen 공식 모델](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice), [0.6B MLX 변환본](https://huggingface.co/mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit): 무료 공개 가중치, Apache-2.0. 0.6B에는 말투 입력을 제공하지 않습니다.
+- [Supertonic 3 공식 모델](https://huggingface.co/Supertone/supertonic-3): 한국어 포함 31개 언어, 약 0.40 GB ONNX 모델·10개 기본 화자. 모델은 OpenRAIL-M, Python 런타임은 supertonic 1.3.1입니다.
+- 세 모델의 리비전·파일 크기는 Hugging Face 모델 API의 실제 응답을 바탕으로 `packages/engine/src/doc2audio/catalog.json`에 고정했습니다. 실행 때 최신 버전을 자동 조회하지 않습니다.
+- 스타일 음성·속도·generation 옵션은 설치된 공식 런타임의 함수 시그니처를 확인하여 연결했습니다. 화자에 따른 한국어 자연스러움은 별도 청취 평가가 필요합니다.

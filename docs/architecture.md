@@ -28,13 +28,13 @@ ffmpeg로 속도·음량 조정 → MP3 또는 WAV 저장
 
 | 책임 | 소스 |
 | --- | --- |
-| 터미널 명령·옵션 해석, 결과 출력 | [cli.py](../src/doc2audio/cli.py) |
-| 문서 형식별 추출·페이지 선택·OCR 판단 | [documents.py](../src/doc2audio/documents.py) |
-| macOS Vision OCR | [documents.py의 recognize_image](../src/doc2audio/documents.py) |
-| 본문 정규화·발음 사전·구간 분할 | [text.py](../src/doc2audio/text.py) |
-| 모델 파일 확인·다운로드·MLX 로딩·생성 호출 | [model.py](../src/doc2audio/model.py) |
-| 전체 처리 순서·작업 ID·캐시·이어하기 | [pipeline.py](../src/doc2audio/pipeline.py) |
-| 음성 유효성 검사·결합·속도와 음량·파일 저장 | [audio.py](../src/doc2audio/audio.py) |
+| 터미널 명령·옵션 해석, 결과 출력 | [cli.py](../apps/cli/src/doc2audio_cli/cli.py) |
+| 문서 형식별 추출·페이지 선택·OCR 판단 | [documents.py](../packages/engine/src/doc2audio/documents.py) |
+| macOS Vision OCR | [documents.py의 recognize_image](../packages/engine/src/doc2audio/documents.py) |
+| 본문 정규화·발음 사전·구간 분할 | [text.py](../packages/engine/src/doc2audio/text.py) |
+| 모델 파일 확인·다운로드·MLX 로딩·생성 호출 | [model.py](../packages/engine/src/doc2audio/model.py) |
+| 전체 처리 순서·작업 ID·캐시·이어하기 | [pipeline.py](../packages/engine/src/doc2audio/pipeline.py) |
+| 음성 유효성 검사·결합·속도와 음량·파일 저장 | [audio.py](../packages/engine/src/doc2audio/audio.py) |
 
 ## 사용 모델과 실행 환경
 
@@ -53,33 +53,32 @@ ffmpeg로 속도·음량 조정 → MP3 또는 WAV 저장
 
 Qwen의 CustomVoice 모델은 미리 정해진 화자와 말투 지시를 받는 모델입니다. 이 프로젝트는 그 모델을 Apple Silicon에서 실행하도록 변환한 MLX 버전을 사용합니다. 원본 모델의 설명은 [Qwen 공식 모델 카드](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice), 변환본은 [MLX 모델 카드](https://huggingface.co/mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit), 실행 라이브러리는 [MLX-Audio](https://github.com/Blaizzy/mlx-audio)를 참고하세요.
 
-버전의 기준은 [pyproject.toml](../pyproject.toml), [uv.lock](../uv.lock), `model.py`입니다. 모델 카드의 다른 실행 예제가 최신 버전이나 PyTorch·CUDA를 사용하더라도, 이 프로젝트는 고정된 MLX 경로를 사용합니다.
+버전의 기준은 [엔진 pyproject.toml](../packages/engine/pyproject.toml), [uv.lock](../uv.lock), [모델 카탈로그](../packages/engine/src/doc2audio/catalog.json)입니다. 모델 카드의 다른 실행 예제가 최신 버전이나 PyTorch·CUDA를 사용하더라도, 이 프로젝트는 고정된 MLX 경로를 사용합니다.
 
 ## 다운로드와 로딩은 별도 단계
 
 ### 모델 파일 준비
 
-`doc2audio download`는 `ensure_model()`을 호출합니다. 변환 명령도 새 음성을 생성해야 할 때 이 함수를 호출하므로, 모델이 없다면 기본적으로 다운로드를 시도합니다. `--offline`을 지정하면 부족한 파일을 내려받지 않고 오류를 반환합니다.
+`doc2audio download --model <모델ID>`는 `engines.install_model()`을 호출합니다. 변환은 `create_narrator()`에서 로컬 준비 상태를 확인합니다. CLI는 `--offline`이 없으면 부족한 모델 파일을 설치할 수 있고, 웹 변환은 항상 설치된 모델만 사용합니다. 웹 다운로드는 별도 영구 작업입니다.
 
-1. Mac의 운영체제와 CPU 아키텍처가 `Darwin arm64`인지 확인합니다.
-2. `MODEL_FILES`에 지정된 12개 필수 파일의 존재와 **파일 크기**를 확인합니다.
-3. 부족한 파일과 여유 공간을 확인하고, 필요한 경우 `huggingface_hub.snapshot_download()`를 호출합니다.
-4. 다운로드 후 파일 크기를 다시 확인하고 로컬 모델 경로를 반환합니다.
+1. 카탈로그에서 모델 ID·고정 리비전과 필수 파일 목록을 가져옵니다.
+2. 홈 디렉터리를 확장한 로컬 경로에서 파일 존재와 **파일 크기**를 확인합니다.
+3. 부족한 파일과 디스크 여유 공간을 확인하고, 필요한 파일마다 `huggingface_hub.hf_hub_download()`를 호출합니다.
+4. 다운로드 후 파일 크기를 다시 확인하고 로컬 경로를 반환합니다. Qwen의 Apple Silicon·Metal 조건은 추론 로딩 단계에서 검사합니다.
 
-주요 다운로드 인자는 다음과 같습니다. 아래 Python 조각은 호출 구조를 설명하기 위한 것이며, 직접 실행하는 예제는 [모델 사용 가이드](model-usage.md#6-python-코드에서-사용하기)에 있습니다.
+주요 다운로드 호출 구조는 다음과 같습니다. 직접 실행하는 예제는 [웹 사용 안내](web-usage.md#cli의-모델-선택)에 있습니다.
 
 ```python
-snapshot_download(
-    MODEL_ID,
-    revision=MODEL_REVISION,
+hf_hub_download(
+    spec["repo_id"],
+    name,
+    revision=spec["revision"],
     local_dir=path,
     token=False,
-    max_workers=3,
-    allow_patterns=list(MODEL_FILES),
 )
 ```
 
-`token=False`로 로그인 토큰 없이 공개 파일을 받고, 지정한 리비전의 필요한 파일만 요청합니다. 필수 파일 합계는 **3,080,138,901바이트**입니다. 주요 구성은 다음과 같습니다.
+`token=False`로 로그인 토큰 없이 공개 파일을 받고, 지정한 리비전의 필요한 파일만 요청합니다. 기본 Qwen 1.7B의 필수 파일 합계는 **3,080,138,901바이트**입니다. 주요 구성은 다음과 같습니다.
 
 | 파일 | 역할 |
 | --- | --- |
@@ -167,13 +166,13 @@ PDF의 반복 쪽번호나 인쇄용 줄바꿈을 책마다 알맞게 제거하�
 
 `pipeline.py`는 다음 정보를 JSON으로 직렬화해 SHA-256을 계산하고, 앞 24자리로 작업 ID를 만듭니다.
 
-- 앱 버전, 모델 ID, 모델 리비전
-- 모든 `Options`: 화자, 말투, 구간 최대 글자 수, seed, 속도, 쉼
+- 앱 버전, 오디오 처리 구현 버전, 모델 ID, 모델 리비전
+- 출력 배속·쉼을 제외한 생성 옵션: 화자, 언어, 말투, 샘플링, 구간 최대 글자 수, seed 등
 - 실제로 읽을 구간별 텍스트 목록
 
-파일 경로 자체로 작업을 구분하지 않습니다. 본문과 설정이 같고 동일한 작업 폴더를 사용하면, 출력 이름이 달라도 저장 구간을 재사용할 수 있습니다. 반대로 속도·쉼도 식별에 포함되므로 후처리 값만 바꾸어도 새 작업 ID가 생깁니다.
+파일 경로 자체로 작업을 구분하지 않습니다. 본문과 설정이 같고 동일한 작업 폴더를 사용하면, 출력 이름이 달라도 저장 구간을 재사용할 수 있습니다. 출력 속도·쉼은 생성 구간 식별에서 제외하므로 후처리만 달리하여 구간을 재사용합니다. 모델 발화 속도 등 생성 자체에 영향을 주는 옵션은 식별에 포함됩니다.
 
-기본 저장 구조는 다음과 같습니다. `작업ID`는 실제 해시 문자열로 바뀝니다.
+CLI의 기본 구간 캐시 구조는 다음과 같습니다. 웹 영구 작업 DB와 요청별 저장 구조는 [모노레포 설계](monorepo.md)에 설명합니다. `작업ID`는 실제 해시 문자열로 바뀝니다.
 
 ```text
 output/

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "doc2audio-server"
+version = "0.2.0"
+description = "Persistent local job server for doc2audio"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "doc2audio-core==0.2.0", "fastapi>=0.135,<1", "uvicorn>=0.41,<1",
+  "python-multipart>=0.0.22,<1",
+]
+
+[project.scripts]
+doc2audio-server = "doc2audio_server.main:main"
+
+[tool.uv.sources]
+doc2audio-core = { workspace = true }

@@ -1,0 +1,16 @@
+import { cp, mkdir, readdir, copyFile } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const modules=resolve(root,'node_modules');
+const out=resolve(root,'apps/web/public/runtime');
+await mkdir(out,{recursive:true});
+for(const name of ['ort-wasm-simd-threaded.mjs','ort-wasm-simd-threaded.wasm']) await copyFile(resolve(modules,'onnxruntime-web/dist',name),resolve(out,name));
+await copyFile(resolve(modules,'pdfjs-dist/build/pdf.worker.min.mjs'),resolve(out,'pdf.worker.min.mjs'));
+for(const dir of ['cmaps','standard_fonts','wasm']) await cp(resolve(modules,'pdfjs-dist',dir),resolve(out,'pdfjs',dir),{recursive:true});
+await mkdir(resolve(out,'tesseract/lang'),{recursive:true});
+await copyFile(resolve(modules,'tesseract.js/dist/worker.min.js'),resolve(out,'tesseract/worker.min.js'));
+for(const name of await readdir(resolve(modules,'tesseract.js-core'))) if(/^tesseract-core.*\.(js|wasm)$/.test(name)) await copyFile(resolve(modules,'tesseract.js-core',name),resolve(out,'tesseract',name));
+for(const lang of ['eng','kor']) await copyFile(resolve(modules,`@tesseract.js-data/${lang}/4.0.0_best_int/${lang}.traineddata.gz`),resolve(out,`tesseract/lang/${lang}.traineddata.gz`));
+for(const [name,source] of [['ONNX-LICENSE.txt','apps/web/public/notices/ONNX-LICENSE.txt'],['TESSERACT-LICENSE.txt','node_modules/tesseract.js/LICENSE.md'],['PDFJS-LICENSE.txt','node_modules/pdfjs-dist/LICENSE'],['SUPERTONIC-NOTICE.md','apps/web/src/browser/SUPERTONIC-NOTICE.md']]) await copyFile(resolve(root,source),resolve(out,name));
+console.log('브라우저 음성·문서·OCR 실행 파일을 public/runtime에 준비했습니다.');

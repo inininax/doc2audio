@@ -2,11 +2,13 @@
 
 Run: uv run python scripts/verify_runtime.py
 This is an opt-in integration check, not part of the fast pytest suite.
+Each document uses a fresh work directory; cached audio cannot satisfy this check.
 No supplied/user documents are read. All generated files stay in output/validation/.
 """
 
 import json
 import subprocess
+import uuid
 from pathlib import Path
 
 import pymupdf
@@ -15,10 +17,12 @@ from docx import Document
 from doc2audio.documents import extract_document
 from doc2audio.pipeline import convert_document
 
+ROOT = Path(__file__).resolve().parents[1]
+OUTPUT = ROOT / "output" / "validation"
+
 
 def main():
-    root = Path(__file__).resolve().parents[1]
-    output = root / "output" / "validation"
+    output = OUTPUT
     output.mkdir(parents=True, exist_ok=True)
     pdf_path = output / "한국어 날짜와 금액.pdf"
     pdf_lines = [
@@ -61,7 +65,14 @@ def main():
             # Check OCR against the original fixture, not just its own transcript.
             assert "".join(extracted.text.split()) == "".join("".join(pdf_lines).split())
         destination = source.with_suffix(".mp3")
-        result = convert_document(source, destination, offline=True, overwrite=True)
+        result = convert_document(
+            source,
+            destination,
+            offline=True,
+            overwrite=True,
+            work_dir=output / "runtime-runs" / uuid.uuid4().hex,
+        )
+        assert result["reused_chunks"] == 0, "Actual inference was bypassed by the audio cache"
         probe = subprocess.run(
             [
                 "ffprobe",
@@ -87,6 +98,7 @@ def main():
             json.dumps(results, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
+        print(f"REAL_DOCUMENT_PASS: {source.name}; reused_chunks=0", flush=True)
     print(f"REAL_RUNTIME_PASS: {len(results)} document formats; {output / 'runtime-results.json'}")
 
 

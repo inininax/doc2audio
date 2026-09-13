@@ -6,9 +6,9 @@ import numpy as np
 import pytest
 
 from doc2audio.audio import prepare_audio
-from doc2audio.cli import main
 from doc2audio.errors import Doc2AudioError
 from doc2audio.pipeline import Options, convert_document, job_lock
+from doc2audio_cli.cli import main
 
 
 class SyntheticNarrator:
@@ -120,6 +120,18 @@ def test_quiet_but_valid_audio_and_clipping_handled():
     assert np.max(np.abs(prepare_audio(quiet * 10000, 24000))) <= 1
 
 
+@pytest.mark.parametrize("gain", [2, 400, 1000])
+def test_clipping_uses_the_normalized_peak_to_find_speech(gain):
+    audio = np.sin(np.arange(7200) / 20).astype(np.float32) * gain
+    # A quiet ending exposes inconsistent trimming even before the empty-mask boundary.
+    audio[-3600:] *= 0.004
+    normalized = audio / np.max(np.abs(audio)) * 0.98
+    expected = prepare_audio(normalized, 24000)
+    actual = prepare_audio(audio, 24000)
+    np.testing.assert_allclose(actual, expected)
+    assert np.isfinite(actual).all()
+
+
 def test_cli_fails_usefully_before_model_load(tmp_path, capsys):
     assert main([str(tmp_path / "missing.pdf")]) == 1
     assert "파일을 찾을 수 없습니다" in capsys.readouterr().err
@@ -129,3 +141,43 @@ def test_cli_fails_usefully_before_model_load(tmp_path, capsys):
     assert "한국어 본문" in capsys.readouterr().out
     assert main(["extract", str(source), "-o", str(source), "--overwrite"]) == 1
     assert source.read_text() == "한국어 본문"
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg required")
+def test_output_speed_change_reuses_voice_chunks(tmp_path):
+    source = tmp_path / "source.txt"
+    source.write_text("속도를 바꾸어도 목소리는 다시 만들지 않습니다.", encoding="utf-8")
+    narrator = SyntheticNarrator()
+    convert_document(source, tmp_path / "normal.mp3", narrator_factory=lambda: narrator)
+    faster = convert_document(
+        source,
+        tmp_path / "faster.mp3",
+        options=Options(speed=1.5),
+        narrator_factory=lambda: narrator,
+    )
+    assert len(narrator.calls) == 1
+    assert faster["reused_chunks"] == 1
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg required")
+@pytest.mark.parametrize("broken_manifest", [[], None, "broken"])
+def test_wrong_shaped_manifest_is_recovered(tmp_path, broken_manifest):
+    source = tmp_path / "source.txt"
+    source.write_text("저장 기록이 손상되어도 다시 생성합니다.", encoding="utf-8")
+    output = tmp_path / "voice.wav"
+    convert_document(source, output, narrator_factory=SyntheticNarrator, progress=lambda _: None)
+    manifest = next(tmp_path.glob(".doc2audio/*/manifest.json"))
+    manifest.write_text(json.dumps(broken_manifest), encoding="utf-8")
+    messages = []
+    regenerated = SyntheticNarrator()
+    result = convert_document(
+        source,
+        output,
+        overwrite=True,
+        narrator_factory=lambda: regenerated,
+        progress=messages.append,
+    )
+    assert result["reused_chunks"] == 0
+    assert len(regenerated.calls) == 1
+    assert any("이전 작업 기록" in message for message in messages)
+    assert len(json.loads(manifest.read_text())["completed"]) == 1

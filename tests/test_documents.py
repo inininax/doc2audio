@@ -1,6 +1,8 @@
 import platform
 import shutil
 import subprocess
+from io import BytesIO
+from zipfile import ZipFile
 
 import pymupdf
 import pytest
@@ -83,13 +85,20 @@ def test_docx_keeps_body_table_hyperlink_order(tmp_path):
     assert extract_document(source).text == "시작. 링크 본문\n\n품목, 수량.\n\n사과, 세 개.\n\n끝."
 
 
-def test_docx_tracked_changes_are_not_silently_dropped(tmp_path):
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_docx_tracked_changes_are_not_silently_dropped(tmp_path, wrapped):
     source = tmp_path / "tracked.docx"
     doc = Document()
     paragraph = doc.add_paragraph("원문")
     change = OxmlElement("w:ins")
     change.set(qn("w:id"), "1")
     paragraph._p.append(change)
+    if wrapped:
+        control = OxmlElement("w:sdt")
+        content = OxmlElement("w:sdtContent")
+        paragraph._p.addprevious(control)
+        content.append(paragraph._p)
+        control.append(content)
     doc.save(source)
     with pytest.raises(Doc2AudioError, match="변경"):
         extract_document(source)
@@ -106,6 +115,55 @@ def test_docx_vertical_merged_cell_is_read_once(tmp_path):
     text = extract_document(source).text
     assert text.count("공통 항목") == 1
     assert "첫 값" in text and "둘째 값" in text
+
+
+def test_docx_content_controls_keep_nested_paragraph_and_table_order(tmp_path):
+    source = tmp_path / "content-controls.docx"
+    doc = Document()
+    doc.add_paragraph("첫 문장.")
+    controlled = doc.add_paragraph("컨트롤 안의 중요한 본문.")
+    table = doc.add_table(rows=2, cols=2)
+    table.cell(0, 0).merge(table.cell(1, 0)).text = "공통 항목"
+    table.cell(0, 1).text = "첫 값"
+    table.cell(1, 1).text = "둘째 값"
+    nested = doc.add_paragraph("중첩된 본문.")
+    doc.add_paragraph("마지막 문장.")
+
+    def wrap(*elements):
+        control = OxmlElement("w:sdt")
+        control.append(OxmlElement("w:sdtPr"))
+        content = OxmlElement("w:sdtContent")
+        elements[0].addprevious(control)
+        for element in elements:
+            content.append(element)
+        control.append(content)
+        return control
+
+    nested_control = wrap(nested._p)
+    wrap(controlled._p, table._tbl, nested_control)
+    doc.save(source)
+    original = source.read_bytes()
+    result = extract_document(source)
+    assert result.text == (
+        "첫 문장.\n\n컨트롤 안의 중요한 본문.\n\n공통 항목, 첫 값.\n\n둘째 값."
+        "\n\n중첩된 본문.\n\n마지막 문장."
+    )
+    assert source.read_bytes() == original
+
+
+def test_docx_inline_content_control_keeps_text(tmp_path):
+    source = tmp_path / "inline-control.docx"
+    doc = Document()
+    paragraph = doc.add_paragraph("이름은 ")
+    run = paragraph.add_run("홍길동")
+    paragraph.add_run("입니다.")
+    control = OxmlElement("w:sdt")
+    content = OxmlElement("w:sdtContent")
+    run._r.addprevious(control)
+    content.append(run._r)
+    control.append(content)
+    doc.save(source)
+    assert extract_document(source).text == "이름은 홍길동입니다."
 
 
 @pytest.mark.integration
@@ -157,3 +215,30 @@ def test_encrypted_empty_and_corrupt_documents(tmp_path):
     corrupt.write_bytes(b"not a document")
     with pytest.raises(Doc2AudioError, match="문서를 읽지 못"):
         extract_document(corrupt)
+
+
+@pytest.mark.parametrize("change_tag", ["ins", "del", "moveFrom", "moveTo"])
+def test_docx_tracked_changes_respect_namespace_uri(tmp_path, change_tag):
+    source = tmp_path / "alternate-prefix.docx"
+    doc = Document()
+    paragraph = doc.add_paragraph("원래 본문. ")
+    change = OxmlElement(f"w:{change_tag}")
+    change.set(qn("w:id"), "1")
+    run = OxmlElement("w:r")
+    text = OxmlElement("w:t")
+    text.text = "변경된 중요한 본문."
+    run.append(text)
+    change.append(run)
+    paragraph._p.append(change)
+    doc.save(source)
+    rebuilt = BytesIO()
+    with ZipFile(source) as archive, ZipFile(rebuilt, "w") as result:
+        for name in archive.namelist():
+            data = archive.read(name)
+            if name == "word/document.xml":
+                # A different prefix denotes exactly the same WordprocessingML URI.
+                data = data.replace(b"w:", b"other:").replace(b"xmlns:w=", b"xmlns:other=")
+            result.writestr(name, data)
+    source.write_bytes(rebuilt.getvalue())
+    with pytest.raises(Doc2AudioError, match="변경"):
+        extract_document(source)

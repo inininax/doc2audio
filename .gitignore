@@ -13,6 +13,7 @@ Thumbs.db
 !.env.*.sample
 
 # Personal agent overrides and runtime state
+.omc/
 CLAUDE.local.md
 AGENTS.override.md
 .claude/settings.local.json
@@ -38,3 +39,10 @@ input/
 .ruff_cache/
 dist/
 *.egg-info/
+
+# Web workspace dependencies and build caches
+node_modules/
+*.tsbuildinfo
+
+# Generated browser runtime files (rebuilt from pinned npm dependencies)
+apps/web/public/runtime/

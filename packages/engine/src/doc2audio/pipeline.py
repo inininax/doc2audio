@@ -6,16 +6,17 @@ import shutil
 import time
 from collections.abc import Callable
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
 import soundfile as sf
 
 from . import __version__
 from .audio import encode_audio, prepare_audio, valid_wav
+from .catalog import DEFAULT_MODEL, get_model, model_path, validate_options
 from .documents import extract_document
 from .errors import Doc2AudioError
-from .model import DEFAULT_INSTRUCT, DEFAULT_MODEL_DIR, MODEL_ID, MODEL_REVISION
+from .model import DEFAULT_INSTRUCT
 from .text import apply_pronunciations, load_pronunciations, split_text
 
 
@@ -62,7 +63,9 @@ def convert_document(
     destination: Path,
     *,
     options: Options | None = None,
-    model_dir: Path = DEFAULT_MODEL_DIR,
+    model_dir: Path | None = None,
+    model_id: str = DEFAULT_MODEL,
+    generation_options: dict | None = None,
     pages: str | None = None,
     ocr: str = "auto",
     pronunciations: Path | None = None,
@@ -72,9 +75,26 @@ def convert_document(
     progress: Callable[[str], None] = print,
     narrator_factory=None,
 ) -> dict:
-    from .model import QwenNarrator, ensure_model
+    from .engines import create_narrator
 
     options = options or Options()
+    spec = get_model(model_id)
+    if generation_options is None:
+        generation_options = {
+            "speed": options.speed,
+            "pause": options.pause,
+            "seed": options.seed,
+            "chunk_chars": options.chunk_chars,
+        }
+        if spec["engine"] == "qwen":
+            generation_options["speaker"] = options.speaker
+            if model_id == DEFAULT_MODEL:
+                generation_options["instruct"] = options.instruct
+    effective = validate_options(model_id, generation_options)
+    options = Options(
+        **{key: effective[key] for key in ("speaker", "speed", "pause", "seed", "chunk_chars")},
+        instruct=effective.get("instruct", ""),
+    )
     source = source.expanduser().resolve()
     destination = destination.expanduser().absolute()
     if source == destination.resolve():
@@ -102,9 +122,12 @@ def convert_document(
     progress(f"본문 {len(text):,}자 · {len(chunks)}개 구간 · OCR {len(document.ocr_pages)}쪽")
     identity = {
         "version": __version__,
-        "model": MODEL_ID,
-        "revision": MODEL_REVISION,
-        "options": asdict(options),
+        "pipeline_revision": 2,  # Invalidate chunks created before per-part padding repair.
+        "model": spec["repo_id"],
+        "revision": spec["revision"],
+        "options": {
+            key: value for key, value in effective.items() if key not in {"speed", "pause"}
+        },
         "chunks": chunks,
     }
     job_id = hashlib.sha256(
@@ -124,6 +147,8 @@ def convert_document(
         if manifest_path.is_file():
             try:
                 previous = json.loads(manifest_path.read_text(encoding="utf-8"))
+                if not isinstance(previous, dict):
+                    raise ValueError("작업 기록이 객체가 아닙니다.")
                 if previous.get("job_id") == job_id and isinstance(previous.get("completed"), dict):
                     manifest["completed"] = previous["completed"]
             except (ValueError, OSError):
@@ -142,10 +167,12 @@ def convert_document(
             else:
                 if narrator is None:
                     if narrator_factory is None:
-                        path = ensure_model(model_dir, offline=offline)
-                        progress("한국어 음성 모델을 불러옵니다.")
-                        narrator = QwenNarrator(
-                            path, speaker=options.speaker, instruct=options.instruct
+                        progress(f"{spec['name']} 모델을 불러옵니다.")
+                        narrator = create_narrator(
+                            model_id,
+                            effective,
+                            offline=offline,
+                            path=model_dir or model_path(model_id),
                         )
                     else:
                         narrator = narrator_factory()
@@ -178,8 +205,8 @@ def convert_document(
             "chunks": len(chunks),
             "reused_chunks": reused,
             "elapsed_seconds": round(time.monotonic() - start, 2),
-            "model": MODEL_ID,
-            "revision": MODEL_REVISION,
+            "model": spec["repo_id"],
+            "revision": spec["revision"],
             "speaker": options.speaker,
             "ocr_pages": document.ocr_pages,
             "warnings": document.warnings,

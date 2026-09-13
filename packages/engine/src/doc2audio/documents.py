@@ -169,18 +169,26 @@ def _word_blocks(container):
 
 def _docx(source) -> DocumentText:
     from docx import Document
+    from docx.oxml.ns import qn
 
     doc = Document(source)
     warnings = []
-    xml = doc.element.xml
-    if "<w:txbxContent" in xml or "<w:footnoteReference" in xml or "<w:endnoteReference" in xml:
+    if doc.element.xpath(".//w:txbxContent | .//w:footnoteReference | .//w:endnoteReference"):
         warnings.append(
             "Word 텍스트 상자·각주·미주는 본문 추출에 포함되지 않습니다. 필요하면 PDF로 내보내세요."
         )
-    if "<w:ins " in xml or "<w:del " in xml:
+    if doc.element.xpath(".//w:ins | .//w:del | .//w:moveFrom | .//w:moveTo"):
         raise Doc2AudioError(
             "변경 내용 추적이 있는 Word 문서입니다. 변경을 수락한 사본을 사용하세요."
         )
+    # python-docx skips structured document tag wrappers. Unwrap their displayed
+    # contents in memory so paragraphs, inline runs, and tables retain their order.
+    for control in doc.element.xpath(".//w:sdt"):
+        content = control.find(qn("w:sdtContent"))
+        if content is not None:
+            for child in list(content):
+                control.addprevious(child)
+        control.getparent().remove(control)
     if len(doc.inline_shapes):
         warnings.append("Word의 이미지 속 글자는 추출하지 않습니다. 스캔 문서는 PDF로 내보내세요.")
     return DocumentText("\n\n".join(_word_blocks(doc)), warnings=warnings)

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "doc2audio"
+version = "0.2.0"
+description = "Command-line interface for the local doc2audio engine"
+requires-python = ">=3.12,<3.13"
+dependencies = ["doc2audio-core==0.2.0"]
+
+[project.scripts]
+doc2audio = "doc2audio_cli.cli:main"
+
+[tool.uv.sources]
+doc2audio-core = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/doc2audio_cli"]

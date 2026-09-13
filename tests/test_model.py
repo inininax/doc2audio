@@ -10,6 +10,8 @@ from doc2audio.model import QwenNarrator
 def test_repetition_limit_cannot_be_accepted_as_completed_audio():
     narrator = QwenNarrator.__new__(QwenNarrator)
     narrator.speaker, narrator.instruct = "Sohee", ""
+    narrator.language = "Korean"
+    narrator.temperature, narrator.top_p, narrator.repetition_penalty = 0.7, 0.9, 1.05
 
     def capped(**kwargs):
         yield SimpleNamespace(

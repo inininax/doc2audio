@@ -6,11 +6,12 @@ import sys
 from pathlib import Path
 
 from .errors import Doc2AudioError, GenerationLimitError
+from .paths import models_dir
 from .text import split_text
 
 MODEL_ID = "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit"
 MODEL_REVISION = "41d3337e8b7f2843a75841595fc14e4b9a7a4b96"
-DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[2] / ".models" / "qwen3-tts-1.7b-8bit"
+DEFAULT_MODEL_DIR = models_dir() / "qwen3-tts-1.7b-8bit"
 DEFAULT_INSTRUCT = (
     "차분하고 따뜻한 한국어 오디오북 낭독. 자연스러운 표준 한국어 발음으로, "
     "문장과 문단 사이에 적절히 쉬면서 또렷하게 읽어 주세요. "
@@ -86,7 +87,17 @@ def ensure_model(path: Path, *, offline: bool = False) -> Path:
 
 
 class QwenNarrator:
-    def __init__(self, path: Path, *, speaker: str = "Sohee", instruct: str = DEFAULT_INSTRUCT):
+    def __init__(
+        self,
+        path: Path,
+        *,
+        speaker: str = "Sohee",
+        instruct: str = DEFAULT_INSTRUCT,
+        language: str = "Korean",
+        temperature: float = 0.7,
+        top_p: float = 0.9,
+        repetition_penalty: float = 1.05,
+    ):
         require_platform()
         # Model files are resolved before loading. No hosted inference or remote tokenizer lookup.
         os.environ["HF_HUB_OFFLINE"] = "1"
@@ -105,6 +116,10 @@ class QwenNarrator:
             raise Doc2AudioError(f"지원하지 않는 화자입니다: {speaker}")
         self.speaker = speaker
         self.instruct = instruct
+        self.language = language
+        self.temperature = temperature
+        self.top_p = top_p
+        self.repetition_penalty = repetition_penalty
 
     def generate(self, text: str, seed: int, _depth: int = 0):
         import numpy as np
@@ -142,11 +157,11 @@ class QwenNarrator:
         results = self.model.generate_custom_voice(
             text=text,
             speaker=self.speaker,
-            language="Korean",
+            language=self.language,
             instruct=self.instruct,
-            temperature=0.7,
-            top_p=0.9,
-            repetition_penalty=1.05,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            repetition_penalty=self.repetition_penalty,
             max_tokens=max_tokens,
             verbose=False,
         )

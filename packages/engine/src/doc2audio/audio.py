@@ -19,8 +19,11 @@ def prepare_audio(audio: np.ndarray, sample_rate: int) -> np.ndarray:
         raise Doc2AudioError("음성 모델이 무음에 가까운 오디오를 반환했습니다.")
     if peak > 1:
         audio = audio / peak * 0.98
+        peak = float(np.max(np.abs(audio)))
     # Retain 120 ms around speech and fade only at the outermost 5 ms boundaries.
     active = np.flatnonzero(np.abs(audio) > max(0.00001, peak * 0.003))
+    if not len(active):
+        raise Doc2AudioError("음성 모델이 무음에 가까운 오디오를 반환했습니다.")
     padding = int(sample_rate * 0.12)
     audio = audio[max(0, active[0] - padding) : min(len(audio), active[-1] + padding + 1)].copy()
     fade = min(int(sample_rate * 0.005), len(audio) // 2)
@@ -118,7 +121,7 @@ def encode_audio(
             "-metadata",
             f"title={destination.stem}",
             "-metadata",
-            "comment=AI narration: Qwen3-TTS / doc2audio",
+            "comment=AI narration / doc2audio",
             str(encoded),
         ]
         completed = subprocess.run(command, capture_output=True, text=True, check=False)
