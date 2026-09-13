@@ -21,6 +21,8 @@
 | 로컬 웹 서버 | `uv run doc2audio-server` → `http://127.0.0.1:8010/?runtime=local` |
 | 웹 의존성·빌드 | `npm ci`, `npm run build` |
 | 웹 개발·미리보기 | `npm run dev` (5173), `npm run preview` (4173) |
+| Docker 웹 배포 | `docker compose up -d --build` → `http://localhost:8080`; `docker compose ps`, 종료 `docker compose down` |
+| Docker 구성 확인 | `docker compose config --quiet`; 이미지 빌드 후 정적 파일·서비스 워커·MIME·404 응답 확인 |
 | 웹 검사 | `npm run check`, `npm run format:check`, `npm run test:web` |
 | Python 검사 | `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest` |
 | Python 패키지 빌드 | `uv build --all-packages` |
@@ -32,6 +34,7 @@
 
 - 원문을 수정하지 않는다. 기존 출력 교체는 `--overwrite`를 명시한다. 실제 변환에 테스트 톤이나 가짜 성공을 사용하지 않는다.
 - 기본 웹은 문서·음성을 외부 서버에 전송하지 않는다. 실행 파일은 서비스 워커 캐시, 모델·등록한 작업은 IndexedDB에 보관한다. 창을 닫으면 계산이 멈추며 같은 사이트·프로필에서 완료 구간을 재사용한다.
+- Docker는 웹 정적 파일만 제공한다. 모델·사용자 데이터·Python/MLX 서버를 이미지에 포함하지 않는다. 외부 공개는 HTTPS 프록시를 사용하며 `DOC2AUDIO_BASE`·`DOC2AUDIO_SITE_URL`은 이미지 빌드 인자다.
 - 로컬 서버는 `127.0.0.1`에 바인딩한다. 웹과 로컬 서버 사이에 문서·작업을 자동 이전하지 않는다.
 - 모델 명세는 `apps/web/src/browser/model-manifest.json`과 `packages/engine/src/doc2audio/catalog.json`을 기준으로 한다. 브라우저의 일반 모델 폴더 지정 기능은 현재 없다.
 - 모델 보관함은 저장 위치·용량 확인과 모델만 삭제하는 기능을 제공한다. 삭제는 문서·작업·음성을 보존하며, 해당 모델의 대기·실행 중 작업과 충돌하지 않도록 보호한다.

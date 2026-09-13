@@ -108,7 +108,7 @@ uv run doc2audio-server
 
 ## 브라우저용 웹을 직접 실행하거나 배포하기
 
-이 방식은 이용자의 브라우저가 Supertonic으로 변환합니다. **Python·uv·ffmpeg 설치와 위의 모델 다운로드 단계는 필요 없습니다.** 프로젝트와 Node.js만 준비합니다. Node 버전은 바로 위와 같습니다.
+이 방식은 이용자의 브라우저가 Supertonic으로 변환합니다. **Python·uv·ffmpeg 설치와 위의 모델 다운로드 단계는 필요 없습니다.** 직접 빌드하려면 프로젝트와 Node.js를 준비합니다. Node 버전은 바로 위와 같습니다. Docker를 사용하면 Node.js 설치도 생략할 수 있습니다.
 
 ### 내 PC에서 열기
 
@@ -124,7 +124,54 @@ npm run preview
 
 화면을 수정하면서 실행할 때는 `npm run dev`를 사용하며 주소는 `http://127.0.0.1:5173`입니다. 개발 모드에는 오프라인 캐시가 없으므로 오프라인 사용 확인은 빌드 후 preview에서 진행합니다.
 
-### 웹사이트로 배포하기
+### Docker로 배포하기
+
+프로젝트를 받은 뒤 [Docker Engine과 Compose](https://docs.docker.com/compose/install/)를 준비하고 프로젝트 폴더에서 실행합니다. Mac·Windows에서는 Docker Desktop을 사용할 수 있습니다.
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+[http://localhost:8080](http://localhost:8080)에서 열립니다. Docker가 Node.js로 웹을 빌드하고 Nginx로 제공합니다. 초기 빌드에는 이미지와 npm 패키지를 내려받을 인터넷 연결이 필요합니다.
+
+| 처리 대상 | 실행·저장 위치 |
+| --- | --- |
+| 웹 화면·문서 추출·음성 실행 파일 | Docker 이미지에서 이용자 브라우저로 제공 |
+| 모델 다운로드·보관 | 이용자 브라우저의 IndexedDB |
+| 문서 추출·음성 생성·작업 이어하기 | 이용자 PC의 브라우저 |
+| Mac용 Qwen·Python 로컬 서버 | 기존 Mac 설치 방식으로 별도 실행 |
+
+Docker 이미지에는 모델과 사용자 문서·작업·음성이 포함되지 않습니다. 이 데이터용 서버 볼륨도 필요 없습니다. 컨테이너를 교체해도 같은 사이트 주소와 브라우저 프로필로 접속하면 브라우저에 저장한 데이터를 사용합니다. 도메인이나 포트가 바뀌면 브라우저가 별도 사이트 저장소로 취급하므로 기존 데이터가 자동으로 나타나지 않습니다.
+
+#### 외부에 공개하기
+
+외부 이용자에게는 **HTTPS 주소**를 제공해야 합니다. 일반 HTTP 서버 IP 주소로 접속하면 앱이 사용하는 보안 컨텍스트·Web Locks·서비스 워커 기능을 사용할 수 없습니다. 같은 PC의 `localhost` 접속은 로컬 확인용으로 사용할 수 있습니다.
+
+기본 포트는 서버 자신의 `127.0.0.1:8080`에서만 열립니다. 같은 서버의 HTTPS 리버스 프록시에서 요청을 `http://127.0.0.1:8080`으로 전달하세요. 프록시도 컨테이너라면 같은 Docker 네트워크에 연결하고 `http://web:8080`으로 전달합니다. 모델은 이용자 브라우저가 Hugging Face에서 직접 내려받습니다. 프록시에서 `.wasm`, `.mjs`, OCR `.gz` 파일의 응답 형식과 내용을 바꾸지 않아야 합니다.
+
+포트·배포 경로·링크 공유 주소를 바꾸려면 프로젝트 폴더의 `.env`에 필요한 값을 저장한 뒤 다시 빌드합니다. 다음은 하위 경로 배포 예시입니다. 도메인은 실제 주소로 바꾸세요.
+
+```dotenv
+DOC2AUDIO_PORT=8080
+DOC2AUDIO_BASE=/doc2audio/
+DOC2AUDIO_SITE_URL=https://example.com/doc2audio/
+```
+
+도메인 루트에 배포한다면 `DOC2AUDIO_BASE=/`, `DOC2AUDIO_SITE_URL=https://example.com/`으로 설정합니다. 사이트 주소는 생략할 수 있지만 지정하면 링크 공유 이미지와 대표 페이지에 절대 주소를 사용합니다. **BASE와 SITE_URL은 빌드 시 적용**되므로 변경 후 `docker compose up -d --build`를 실행해야 합니다.
+
+하위 경로는 `/doc2audio/`처럼 영문·숫자·하이픈·밑줄로 구성하고 끝에 `/`를 붙입니다. `/healthz/`로 시작하는 경로는 상태 확인용으로 예약되어 사용할 수 없습니다. 프록시는 이 경로를 제거하지 않고 그대로 전달해야 합니다. 예를 들어 `/doc2audio/` 설정 후에는 `https://example.com/doc2audio/` 또는 로컬 확인용 `http://localhost:8080/doc2audio/`로 접속합니다. 컨테이너 상태 확인 주소는 배포 경로와 관계없이 `/healthz`입니다.
+
+#### 업데이트와 종료
+
+```bash
+git pull --ff-only
+docker compose up -d --build
+```
+
+로그 확인은 `docker compose logs --tail=100 web`, 종료는 `docker compose down`을 사용합니다. 컨테이너를 종료해도 이용자 브라우저의 모델과 작업은 삭제되지 않습니다. 이미 저장된 화면의 새 버전 적용은 열려 있는 사이트 탭을 모두 닫았다가 다시 열어 확인하세요.
+
+### 정적 호스팅에 배포하기
 
 빌드 결과인 **`apps/web/dist/` 전체**를 HTTPS 정적 호스팅에 올립니다. 모델 실행 서버는 필요 없습니다. `runtime/`, `assets/`, `sw.js`, 라이선스 파일을 포함해 모든 생성 파일을 함께 배포하세요. `file://`로 HTML을 여는 방식은 지원하지 않습니다.
 
