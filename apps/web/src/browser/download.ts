@@ -141,9 +141,6 @@ export async function downloadModel(
         }
         expectedBytes = Number(range[2]) - offset + 1;
       } else if (response.status === 200) {
-        // Servers/CDNs may ignore Range. A full response always starts at zero.
-        await clearAssetParts(asset.name);
-        offset = 0;
         expectedBytes = asset.size;
       } else {
         await response.body?.cancel();
@@ -157,6 +154,14 @@ export async function downloadModel(
         throw new Error(
           `모델 다운로드 응답 크기가 올바르지 않습니다: ${asset.name}`,
         );
+      }
+      if (!response.body)
+        throw new Error("모델 다운로드 응답이 비어 있습니다.");
+      if (response.status === 200) {
+        // Servers/CDNs may ignore Range. Validate the response headers before
+        // discarding checkpoints to restart a full response at zero.
+        await clearAssetParts(asset.name);
+        offset = 0;
       }
       const start = offset;
       await checkpointBody(

@@ -181,3 +181,52 @@ def test_wrong_shaped_manifest_is_recovered(tmp_path, broken_manifest):
     assert len(regenerated.calls) == 1
     assert any("이전 작업 기록" in message for message in messages)
     assert len(json.loads(manifest.read_text())["completed"]) == 1
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg required")
+def test_decorative_paragraphs_preserve_text_and_original_cache_indexes(tmp_path):
+    source = tmp_path / "source.txt"
+    original = "첫 문장입니다.\n\n🎉\n\n---\n\n마지막 문장입니다."
+    source.write_text(original, encoding="utf-8")
+    output = tmp_path / "voice.wav"
+    interrupted = SyntheticNarrator(fail_on=2)
+    with pytest.raises(Doc2AudioError, match="interruption"):
+        convert_document(
+            source, output, narrator_factory=lambda: interrupted, progress=lambda _: None
+        )
+    assert interrupted.calls == [("첫 문장입니다.", 42), ("마지막 문장입니다.", 45)]
+    cache = next(tmp_path.glob(".doc2audio/*"))
+    first_hash = (cache / "00000.wav").read_bytes()
+    resumed = SyntheticNarrator()
+    result = convert_document(
+        source, output, narrator_factory=lambda: resumed, progress=lambda _: None
+    )
+    assert result["chunks"] == 2 and result["reused_chunks"] == 1
+    assert resumed.calls == [("마지막 문장입니다.", 45)]
+    assert (cache / "00000.wav").read_bytes() == first_hash
+    assert (cache / "00003.wav").is_file()
+    assert not (cache / "00001.wav").exists() and not (cache / "00002.wav").exists()
+    assert source.read_text(encoding="utf-8") == original
+    assert (cache / "extracted.txt").read_text(encoding="utf-8") == original + "\n"
+    assert (cache / "narration.txt").read_text(encoding="utf-8") == original + "\n"
+    assert json.loads((cache / "manifest.json").read_text())["chunks"] == original.split("\n\n")
+    assert any("2개 구간" in warning for warning in result["warnings"])
+
+
+def test_pronunciation_mapping_with_no_spoken_text_fails_before_loading_model(tmp_path):
+    source = tmp_path / "source.txt"
+    source.write_text("그림", encoding="utf-8")
+    dictionary = tmp_path / "dictionary.json"
+    dictionary.write_text(json.dumps({"그림": "🎉"}), encoding="utf-8")
+
+    def unexpected_model():
+        pytest.fail("No model should load when the pronunciation text has no speech")
+
+    with pytest.raises(Doc2AudioError, match="읽을 본문"):
+        convert_document(
+            source,
+            tmp_path / "voice.wav",
+            pronunciations=dictionary,
+            narrator_factory=unexpected_model,
+            progress=lambda _: None,
+        )

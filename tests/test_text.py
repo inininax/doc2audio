@@ -43,7 +43,10 @@ def test_pronunciation_replacements_are_single_pass():
     )
 
 
-@pytest.mark.parametrize("value", [[], {"": "empty"}, {"key": ""}, {"key": 3}, "bad"])
+@pytest.mark.parametrize(
+    "value",
+    [[], {"": "empty"}, {"key": ""}, {"key": 3}, "bad", {"key": "\ud800"}, {"\udfff": "발음"}],
+)
 def test_bad_dictionary_is_rejected(tmp_path, value):
     path = tmp_path / "pronunciation.json"
     path.write_text(json.dumps(value), encoding="utf-8")

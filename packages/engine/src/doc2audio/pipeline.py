@@ -117,9 +117,23 @@ def convert_document(
         progress(f"주의: {warning}")
     text = apply_pronunciations(document.text, load_pronunciations(pronunciations))
     chunks = split_text(text, options.chunk_chars)
-    if not chunks:
+    # Keep original chunks in the cache identity and retain their indexes/seeds.
+    # Decorative paragraphs are preserved in transcripts, but have no speech.
+    spoken_chunks = [
+        (index, chunk) for index, chunk in enumerate(chunks) if any(map(str.isalnum, chunk))
+    ]
+    if not spoken_chunks:
         raise Doc2AudioError("읽을 본문이 없습니다.")
-    progress(f"본문 {len(text):,}자 · {len(chunks)}개 구간 · OCR {len(document.ocr_pages)}쪽")
+    if len(spoken_chunks) < len(chunks):
+        warning = (
+            f"문자나 숫자가 없는 {len(chunks) - len(spoken_chunks)}개 구간은 "
+            "음성 생성을 건너뜁니다. 원문은 보존합니다."
+        )
+        document.warnings.append(warning)
+        progress(f"주의: {warning}")
+    progress(
+        f"본문 {len(text):,}자 · {len(spoken_chunks)}개 구간 · OCR {len(document.ocr_pages)}쪽"
+    )
     identity = {
         "version": __version__,
         "pipeline_revision": 2,  # Invalidate chunks created before per-part padding repair.
@@ -158,11 +172,11 @@ def convert_document(
         write_json(manifest_path, manifest)
         narrator = None
         wav_paths, reused = [], 0
-        for index, chunk in enumerate(chunks):
+        for position, (index, chunk) in enumerate(spoken_chunks, 1):
             wav = job / f"{index:05d}.wav"
             record = manifest["completed"].get(str(index), {})
             if isinstance(record, dict) and cached_chunk(wav, record):
-                progress(f"[{index + 1}/{len(chunks)}] 저장된 음성 재사용")
+                progress(f"[{position}/{len(spoken_chunks)}] 저장된 음성 재사용")
                 reused += 1
             else:
                 if narrator is None:
@@ -176,7 +190,7 @@ def convert_document(
                         )
                     else:
                         narrator = narrator_factory()
-                progress(f"[{index + 1}/{len(chunks)}] {len(chunk)}자 음성 생성 중")
+                progress(f"[{position}/{len(spoken_chunks)}] {len(chunk)}자 음성 생성 중")
                 audio, rate = narrator.generate(chunk, (options.seed + index) % 2**32)
                 if rate != 24000:
                     raise Doc2AudioError(f"예상하지 못한 샘플레이트입니다: {rate}")
@@ -189,7 +203,7 @@ def convert_document(
                     "seconds": len(audio) / rate,
                 }
                 write_json(manifest_path, manifest)
-                progress(f"[{index + 1}/{len(chunks)}] 완료 · 음성 {len(audio) / rate:.1f}초")
+                progress(f"[{position}/{len(spoken_chunks)}] 완료 · 음성 {len(audio) / rate:.1f}초")
             wav_paths.append(wav)
         progress("음량을 맞추고 오디오 파일을 저장합니다.")
         duration = encode_audio(
@@ -202,7 +216,7 @@ def convert_document(
         result = {
             "output": str(destination),
             "seconds": round(duration, 2),
-            "chunks": len(chunks),
+            "chunks": len(spoken_chunks),
             "reused_chunks": reused,
             "elapsed_seconds": round(time.monotonic() - start, 2),
             "model": spec["repo_id"],

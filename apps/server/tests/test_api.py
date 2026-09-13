@@ -109,6 +109,13 @@ def test_model_capabilities_reject_unsupported_and_invalid_options(client):
     assert client.get("/api/jobs").json()["total"] == 0
 
 
+@pytest.mark.parametrize("options", [{"instruct": "\ud800"}, {"\udfff": "unsupported"}])
+def test_invalid_unicode_in_json_options_is_a_validation_error(client, options):
+    response = submit(client, model_id="qwen3-1.7b", options=json.dumps(options))
+    assert response.status_code == 422, response.text
+    assert client.get("/api/jobs").json()["total"] == 0
+
+
 def test_invalid_input_is_rejected_and_uploaded_name_cannot_escape(client, tmp_path):
     assert submit(client, text="").status_code == 422
     assert (

@@ -75,3 +75,12 @@ def test_download_network_failure_returns_actionable_error(tmp_path, monkeypatch
     assert "모델 다운로드 실패" in error
     assert "재시도" in error
     assert "Traceback" not in error
+
+
+def test_invalid_unicode_json_option_fails_before_conversion(tmp_path, capsys):
+    source = tmp_path / "source.txt"
+    source.write_text("정상적인 본문입니다.", encoding="utf-8")
+    assert cli.main([str(source), "--model-options", '{"instruct":"\\ud800"}']) == 1
+    error = capsys.readouterr().err
+    assert "올바르지 않습니다" in error
+    assert not source.with_suffix(".mp3").exists()

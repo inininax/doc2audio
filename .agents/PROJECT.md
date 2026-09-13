@@ -26,7 +26,7 @@
 | 모델 설치·환경 점검 | `uv run doc2audio download`, `uv run doc2audio doctor` |
 | 문서 변환 | `uv run doc2audio "/절대/경로/문서.pdf"` |
 | 본문 미리 확인 | `uv run doc2audio extract "/절대/경로/문서.pdf"` |
-| 브라우저 웹 | `npm ci`, `npm run build`, `npm run preview` (127.0.0.1:4173), Node.js 22.12+ |
+| 브라우저 웹 | `npm ci`, `npm run build`, `npm run preview` (127.0.0.1:4173), Node.js 22.20+(22.x) / 24.12+(24.x) / 26+ |
 | 웹 정적 배포 | `apps/web/dist/` 전체를 HTTPS 정적 호스팅에 제공. 세부 설정은 `docs/browser-runtime.md` |
 | 선택적 로컬 서버 | `uv run doc2audio-server`, `http://127.0.0.1:8010/?runtime=local` |
 | 웹 개발 서버 | `npm run dev` (127.0.0.1:5173), 기본 모드에는 API 서버 불필요 |
@@ -44,7 +44,7 @@
 
 - 기본 웹 모델은 Supertonic 3 (10개 목소리, 31개 언어, 한국어 F1 기본)이다. 고정 리비전·18개 파일 크기·SHA256은 `apps/web/src/browser/model-manifest.json`에 둔다.
 - CLI·로컬 서버의 기본 모델은 Qwen3-TTS 1.7B CustomVoice MLX 8bit, 한국어 화자는 Sohee이다. 모델 ID·리비전·필수 파일은 `packages/engine/src/doc2audio/catalog.json`에 고정한다. Qwen 0.6B와 Supertonic 3도 지원한다.
-- 모델 선택은 `docs/model-research.md`, 실제 검증은 `docs/validation.md`와 후속 전체 점검 `docs/five-pass-audit.md`를 근거로 판단한다.
+- 모델 선택은 `docs/model-research.md`, 실제 검증은 `docs/validation.md`와 후속 전체 점검 `docs/five-pass-audit.md`, 추가 오류 점검 `docs/followup-audit.md`를 근거로 판단한다.
 - 초보자 설치·일상 사용은 `README.md`, 모델 사용법은 `docs/model-usage.md`, 내부 호출과 처리 구조는 `docs/architecture.md`에서 설명한다. 사용 문서는 HTML 없이 순수 Markdown으로 유지한다.
 - `.models/`, `.doc2audio/`, `output/`, `input/`은 로컬 전용이며 Git에 포함하지 않는다.
 - 테스트용 합성 톤은 자동 테스트에서만 사용한다. 실제 TTS 검증 및 사용자 변환에 대체 음성·mock 성공을 사용하지 않는다.

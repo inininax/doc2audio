@@ -79,3 +79,48 @@ def test_chunked_upload_is_bounded_and_closes_parser_files(tmp_path, monkeypatch
         assert response.status_code == 202, response.text
         source = tmp_path / "jobs" / response.json()["id"] / "source.txt"
         assert source.read_bytes() == b"x" * total
+
+
+def test_cancelled_upload_copy_removes_unregistered_source(tmp_path, monkeypatch):
+    monkeypatch.setattr("doc2audio_server.app.missing_files", lambda _: [])
+    monkeypatch.setattr("doc2audio_server.app.shutil.which", lambda _: "/test/ffmpeg")
+    app = create_app(tmp_path, start_worker=False)
+    original_read = UploadFile.read
+    uploads = []
+
+    async def cancel_during_copy():
+        copying = asyncio.Event()
+        reads = 0
+
+        async def read(file, size=-1):
+            nonlocal reads
+            reads += 1
+            if reads == 2:
+                uploads.append(file)
+                copying.set()
+                await asyncio.Event().wait()
+            return await original_read(file, size)
+
+        monkeypatch.setattr(UploadFile, "read", read)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1:8010"
+        ) as client:
+            task = asyncio.create_task(
+                client.post(
+                    "/api/jobs",
+                    headers={"X-Doc2Audio": "1"},
+                    data={"model_id": "supertonic-3"},
+                    files={"file": ("source.txt", b"x" * (1024 * 1024 + 1))},
+                )
+            )
+            await asyncio.wait_for(copying.wait(), timeout=3)
+            partial = list((tmp_path / "jobs").glob("*/source.txt"))
+            assert len(partial) == 1 and partial[0].stat().st_size == 1024 * 1024
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+    asyncio.run(cancel_during_copy())
+    assert app.state.store.list() == []
+    assert not list((tmp_path / "jobs").iterdir())
+    assert uploads and all(file.file.closed for file in uploads)

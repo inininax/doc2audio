@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
+from anyio import CancelScope
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -203,12 +204,16 @@ def create_app(root: Path | None = None, *, start_worker=True, web_dir: Path | N
                 options={"voice": voice, "pages": pages.strip() or None, "ocr": ocr},
                 job_id=job_id,
             )
-        except Exception:
+        except BaseException:
+            # Request cancellation also abandons this unregistered source copy.
             shutil.rmtree(folder)
             raise
         finally:
             if file:
-                await file.close()
+                # Rolled uploads close in a worker thread; allow that cleanup to
+                # finish even when the surrounding request scope is cancelled.
+                with CancelScope(shield=True):
+                    await file.close()
         return public_job(job)
 
     @app.post("/api/jobs/{job_id}/cancel")

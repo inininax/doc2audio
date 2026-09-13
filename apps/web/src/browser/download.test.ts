@@ -130,6 +130,35 @@ it("restarts correctly when the server ignores Range and returns the full file",
   expect(downloaded.every((value, index) => value === bytes[index])).toBe(true);
 });
 
+it.each(["invalid length", "empty body"])(
+  "keeps committed bytes when a full response has %s",
+  async (failure) => {
+    await saveAssetPart(
+      "fixture.onnx",
+      0,
+      new Blob([bytes.subarray(0, DOWNLOAD_SEGMENT_BYTES)]),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(failure === "empty body" ? null : "bad gateway", {
+            status: 200,
+            headers: failure === "empty body" ? {} : { "Content-Length": "11" },
+          }),
+      ),
+    );
+    await expect(
+      downloadModel(new AbortController().signal, progress),
+    ).rejects.toThrow(failure === "empty body" ? "응답이 비어" : "응답 크기");
+    const parts = await readAssetParts("fixture.onnx");
+    expect(parts).toHaveLength(1);
+    expect(parts[0].offset).toBe(0);
+    expect(parts[0].blob.size).toBe(DOWNLOAD_SEGMENT_BYTES);
+    expect(await modelInstalled()).toBe(false);
+  },
+);
+
 it("does not checkpoint a truncated response or install bytes that fail the pinned hash", async () => {
   vi.stubGlobal(
     "fetch",

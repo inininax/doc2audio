@@ -376,6 +376,49 @@ describe("persistent browser queue lifecycle", () => {
     expect(state.output).not.toHaveBeenCalled();
   });
 
+  it.each(["hidden", "visible"])(
+    "does not start the next queued job after pagehide while visibility is %s, and resumes on pageshow",
+    async (visibility) => {
+      const late = deferred<PCM>();
+      state.synthesis.mockReturnValueOnce(late.promise);
+      state.jobs.set("leaving", job("leaving", "queued", "첫 작업"));
+      state.jobs.set("next", job("next", "queued", "대기 작업"));
+      const service = await import("./service");
+      await service.initialize();
+      await waitFor(() => state.synthesis.mock.calls.length === 1);
+      documentSurface.visibilityState = visibility;
+      windowSurface.dispatchEvent(new Event("pagehide"));
+      late.resolve(fixtureAudio());
+      await waitIdle();
+      expect(state.jobs.get("leaving")?.status).toBe("running");
+      expect(state.jobs.get("next")?.status).toBe("queued");
+      expect(state.synthesis).toHaveBeenCalledTimes(1);
+      documentSurface.visibilityState = "visible";
+      windowSurface.dispatchEvent(new Event("pageshow"));
+      await waitFor(() => state.jobs.get("next")?.status === "completed");
+      expect(state.jobs.get("leaving")?.status).toBe("completed");
+      expect(state.jobs.get("leaving")?.attempt).toBe(2);
+      await waitIdle();
+    },
+  );
+
+  it("does not create a worker if pagehide occurs while claiming a queued job", async () => {
+    state.jobs.set("claiming", job("claiming", "queued", "복귀 후 처리"));
+    state.update.mockImplementationOnce(() => {
+      windowSurface.dispatchEvent(new Event("pagehide"));
+    });
+    const service = await import("./service");
+    await service.initialize();
+    await waitIdle();
+    expect(state.jobs.get("claiming")?.status).toBe("running");
+    expect(state.synthesis).not.toHaveBeenCalled();
+    expect(state.extract).not.toHaveBeenCalled();
+    windowSurface.dispatchEvent(new Event("pageshow"));
+    await waitFor(() => state.jobs.get("claiming")?.status === "completed");
+    expect(state.jobs.get("claiming")?.attempt).toBe(2);
+    await waitIdle();
+  });
+
   it("a cancelled job cannot be completed by late MP3 encoding", async () => {
     const late = deferred<Blob>();
     state.encode.mockImplementationOnce(async () => late.promise);
@@ -634,6 +677,31 @@ describe("persistent browser queue lifecycle", () => {
 });
 
 describe("cross-tab audio URL ownership", () => {
+  it("reports a job deleted between its action and response without leaking its audio URL", async () => {
+    documentSurface.visibilityState = "hidden";
+    const initial = job("deleted-during-action", "completed");
+    initial.output = new Blob(["fixture MP3"]);
+    state.jobs.set(initial.id, initial);
+    const revoke = vi.spyOn(URL, "revokeObjectURL");
+    try {
+      const service = await import("./service");
+      const detail = await service.browserRequest<StoredJob>(
+        `jobs/${initial.id}`,
+      );
+      state.get
+        .mockImplementationOnce(() => {})
+        .mockImplementationOnce(() => {
+          state.jobs.delete(initial.id);
+        });
+      await expect(
+        service.browserRequest(`jobs/${initial.id}/cancel`, { method: "POST" }),
+      ).rejects.toThrow("작업을 찾을 수 없습니다");
+      expect(revoke).toHaveBeenCalledExactlyOnceWith(detail.audio_url);
+    } finally {
+      revoke.mockRestore();
+    }
+  });
+
   it("releases the Blob URL after another tab deletes its job", async () => {
     documentSurface.visibilityState = "hidden";
     const initial = job("deleted-elsewhere", "completed");

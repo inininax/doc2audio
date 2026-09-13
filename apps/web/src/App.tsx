@@ -53,6 +53,7 @@ export default function App() {
   const [view, setView] = useState<View>(currentView);
   const [models, setModels] = useState<Model[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobsPage, setJobsPage] = useState<number | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const pageRef = useRef(0);
@@ -64,6 +65,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const selectionRef = useRef<{ id: string | null }>({ id: null });
+  const detailSequence = useRef(0);
   const [detail, setDetail] = useState<Job | null>(null);
   const [detailError, setDetailError] = useState<{
     message: string;
@@ -74,6 +76,7 @@ export default function App() {
     // A new identity invalidates pending detail responses even after closing
     // and reopening the same job before an earlier action has returned.
     selectionRef.current = { id: job?.id ?? null };
+    detailSequence.current += 1;
     setSelected(job?.id ?? null);
     setDetail(job);
     setDetailError(null);
@@ -117,6 +120,7 @@ export default function App() {
       return;
     }
     setJobs(j.items);
+    setJobsPage(requestedPage);
   }, [changePage]);
   useEffect(() => {
     let disposed = false;
@@ -153,17 +157,22 @@ export default function App() {
     let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       const selection = selectionRef.current;
+      if (selection.id !== selected) return;
+      const sequence = ++detailSequence.current;
+      const current = () =>
+        !disposed &&
+        selection === selectionRef.current &&
+        sequence === detailSequence.current;
       try {
-        if (selection.id !== selected) return;
         const d = await request<Job>(`/jobs/${selected}`);
-        if (!disposed && selection === selectionRef.current) {
+        if (current()) {
           setDetail(d);
           setDetailError((current) =>
             current?.source === "poll" ? null : current,
           );
         }
       } catch (e) {
-        if (!disposed && selection === selectionRef.current)
+        if (current())
           setDetailError((current) =>
             current?.source === "action"
               ? current
@@ -203,12 +212,17 @@ export default function App() {
       !!jobId && selection.id === jobId && selection === selectionRef.current;
     setBusy(true);
     if (jobId) {
-      if (ownsSelection()) setDetailError(null);
+      if (ownsSelection()) {
+        detailSequence.current += 1;
+        setDetailError(null);
+      }
     } else {
       setError("");
     }
     try {
       await request(path, { method: "POST" });
+      // Polls begun before the mutation completed may still contain its old state.
+      if (ownsSelection()) detailSequence.current += 1;
       setToast(message);
       if (path.endsWith("/delete") && ownsSelection()) selectJob(null);
       await refresh().catch((e: unknown) => {
@@ -217,16 +231,19 @@ export default function App() {
         );
       });
       if (ownsSelection() && !path.endsWith("/delete")) {
+        const sequence = ++detailSequence.current;
+        const current = () =>
+          ownsSelection() && sequence === detailSequence.current;
         try {
           const updated = await request<Job>(`/jobs/${jobId}`);
-          if (ownsSelection()) {
+          if (current()) {
             setDetail(updated);
             setDetailError((current) =>
               current?.source === "poll" ? null : current,
             );
           }
         } catch (e) {
-          if (ownsSelection())
+          if (current())
             setDetailError((current) =>
               current?.source === "action"
                 ? current
@@ -253,6 +270,8 @@ export default function App() {
       setBusy(false);
     }
   }
+  const jobsLoading = jobsPage !== page;
+  const pageJobs = jobsLoading ? [] : jobs;
   const modelName = (id: string) => models.find((m) => m.id === id)?.name || id;
   const runtimeLabel = browserMode ? "브라우저 실행" : "로컬 서버 실행";
   return (
@@ -412,9 +431,11 @@ export default function App() {
               실행하세요.
             </Alert>
           )}
-          {!ready && !connectionError && (
+          {(!ready || jobsLoading) && !connectionError && (
             <LinearProgress
-              aria-label="작업과 모델 불러오는 중"
+              aria-label={
+                ready ? "작업 기록 불러오는 중" : "작업과 모델 불러오는 중"
+              }
               sx={{ mb: 3 }}
             />
           )}
@@ -510,9 +531,9 @@ export default function App() {
                 모두 보기
               </Button>
             </Stack>
-            {jobs.length ? (
+            {jobsLoading ? null : pageJobs.length ? (
               <Stack spacing={1.5}>
-                {jobs.slice(0, 3).map((job) => (
+                {pageJobs.slice(0, 3).map((job) => (
                   <JobCard
                     key={job.id}
                     job={job}
@@ -533,8 +554,8 @@ export default function App() {
           {view === "models" && (
             <Models
               models={models}
-              jobs={jobs}
-              busy={busy}
+              jobs={pageJobs}
+              busy={busy || jobsLoading}
               onDownload={(id) => {
                 void action(
                   `/models/${id}/download`,
@@ -563,16 +584,16 @@ export default function App() {
                     component="span"
                     sx={{ color: "text.secondary", ml: 0.5 }}
                   >
-                    {total.toLocaleString()}
+                    {ready ? total.toLocaleString() : "—"}
                   </Box>
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   최신 등록순
                 </Typography>
               </Stack>
-              {jobs.length ? (
+              {jobsLoading ? null : pageJobs.length ? (
                 <Stack spacing={1.5}>
-                  {jobs.map((job) => (
+                  {pageJobs.map((job) => (
                     <JobCard
                       key={job.id}
                       job={job}
@@ -657,7 +678,7 @@ export default function App() {
           void action(
             `/jobs/${id}/${next}`,
             next === "cancel"
-              ? "작업을 취소했습니다."
+              ? "작업 취소를 요청했습니다."
               : next === "pause"
                 ? "작업을 일시정지했습니다."
                 : next === "delete"

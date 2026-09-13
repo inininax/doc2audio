@@ -34,7 +34,9 @@ const channel =
 let started = false;
 let startPromise: Promise<void> | undefined;
 let trying = false;
+let pageHidden = false;
 let activeController: AbortController | undefined;
+const canRun = () => !pageHidden && document.visibilityState !== "hidden";
 const now = () => new Date().toISOString();
 const abortError = () =>
   new DOMException("작업이 중단되었습니다.", "AbortError");
@@ -92,6 +94,9 @@ async function execute(initial: StoredJob) {
   );
   if (!accepted) return;
   notify();
+  // The page may have left while the status transaction was committing.
+  // Leave that running record recoverable without creating new workers.
+  if (!canRun()) return;
   const controller = new AbortController();
   activeController = controller;
   let client: SpeechClient | undefined;
@@ -332,20 +337,20 @@ async function execute(initial: StoredJob) {
   }
 }
 async function kick() {
-  if (trying || document.visibilityState === "hidden") return;
+  if (trying || !canRun()) return;
   trying = true;
   try {
     await navigator.locks.request(
       "doc2audio-browser-runner",
       { ifAvailable: true },
       async (lock) => {
-        if (!lock) return;
+        if (!lock || !canRun()) return;
         await recover();
-        while (true) {
+        while (canRun()) {
           const next = (await listJobs())
             .filter((j) => j.status === "queued")
             .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
-          if (!next) break;
+          if (!next || !canRun()) break;
           await execute(next);
         }
       },
@@ -379,7 +384,14 @@ async function boot() {
   document.addEventListener("visibilitychange", () => {
     void kick();
   });
-  window.addEventListener("pagehide", () => activeController?.abort());
+  window.addEventListener("pagehide", () => {
+    pageHidden = true;
+    activeController?.abort();
+  });
+  window.addEventListener("pageshow", () => {
+    pageHidden = false;
+    void kick();
+  });
   setInterval(() => {
     void kick();
   }, 1000);
@@ -529,7 +541,10 @@ export async function browserRequest<T>(
     const id = parts[1],
       command = parts[2];
     const job = await getJob(id);
-    if (!job) throw new Error("작업을 찾을 수 없습니다.");
+    if (!job) {
+      releaseAudioUrl(id);
+      throw new Error("작업을 찾을 수 없습니다.");
+    }
     if (command === "pause" || command === "cancel") {
       await updateJob(
         id,
@@ -564,7 +579,14 @@ export async function browserRequest<T>(
       releaseAudioUrl(id);
       value = { deleted: true };
     } else throw new Error("지원하지 않는 작업입니다.");
-    if (command !== "delete") value = toPublic((await getJob(id))!);
+    if (command !== "delete") {
+      const current = await getJob(id);
+      if (!current) {
+        releaseAudioUrl(id);
+        throw new Error("작업을 찾을 수 없습니다.");
+      }
+      value = toPublic(current);
+    }
     notify();
     void kick();
   } else throw new Error("지원하지 않는 브라우저 요청입니다.");

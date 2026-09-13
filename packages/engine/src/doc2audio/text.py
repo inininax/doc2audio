@@ -8,6 +8,17 @@ from pathlib import Path
 from .errors import Doc2AudioError
 
 
+def is_utf8_text(value: object) -> bool:
+    """JSON can contain lone surrogate escapes that cannot be stored as UTF-8."""
+    if not isinstance(value, str):
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 def normalize_text(text: str) -> str:
     text = unicodedata.normalize("NFC", text).replace("\r\n", "\n").replace("\r", "\n")
     text = text.replace("\x0c", "\n\n")
@@ -30,7 +41,7 @@ def load_pronunciations(path: Path | None) -> dict[str, str]:
     except (OSError, ValueError) as exc:
         raise Doc2AudioError(f"발음 사전 JSON을 읽을 수 없습니다: {path}") from exc
     if not isinstance(value, dict) or any(
-        not isinstance(k, str) or not k or not isinstance(v, str) or not v.strip()
+        not is_utf8_text(k) or not k or not is_utf8_text(v) or not v.strip()
         for k, v in value.items()
     ):
         raise Doc2AudioError('발음 사전은 {"원문": "읽을 발음"} 형태여야 합니다.')

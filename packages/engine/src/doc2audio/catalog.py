@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .errors import Doc2AudioError
 from .paths import models_dir
+from .text import is_utf8_text
 
 CATALOG = json.loads(Path(__file__).with_suffix(".json").read_text())
 DEFAULT_MODEL = "qwen3-1.7b"
@@ -131,6 +132,8 @@ def option_schema(model_id: str) -> list[dict]:
 def validate_options(model_id: str, values: dict) -> dict:
     if not isinstance(values, dict):
         raise Doc2AudioError("음성 설정은 객체여야 합니다.")
+    if not all(is_utf8_text(key) for key in values):
+        raise Doc2AudioError("음성 설정의 옵션 이름이 올바르지 않습니다.")
     schema = option_schema(model_id)
     unknown = set(values) - {f["key"] for f in schema}
     if unknown:
@@ -142,7 +145,7 @@ def validate_options(model_id: str, values: dict) -> dict:
         if f["type"] == "select":
             valid = value in f["choices"]
         elif f["type"] == "text":
-            valid = isinstance(value, str) and len(value) <= f["max_length"]
+            valid = is_utf8_text(value) and len(value) <= f["max_length"]
         else:
             valid = (
                 isinstance(value, (int, float))
