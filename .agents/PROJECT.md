@@ -1,64 +1,37 @@
 # 프로젝트 정보
 
-환경을 구성한 뒤 실제로 확정된 정보만 채운다. `미정`은 실행 명령이 아니며, AI가 임의로 기술 스택을 선택하라는 뜻도 아니다.
+## 범위와 실행 환경
 
-## 현재 범위
+- 목적: PDF·DOCX·DOC·UTF-8 TXT를 사용자 PC에서 한국어 MP3로 변환한다.
+- 웹: React·TypeScript·Vite, ONNX Runtime Web/WASM, IndexedDB. 기본 모델은 Supertonic 3이다.
+- CLI·로컬 서버: Python 3.12, Apple Silicon macOS, MLX-Audio, FastAPI, SQLite, ffmpeg. 기본 모델은 Qwen3-TTS 1.7B CustomVoice MLX 8bit·Sohee이며 Qwen 0.6B와 Supertonic 3도 지원한다.
+- 코드 위치: `apps/web/`, `apps/cli/`, `apps/server/`, `packages/engine/`. 패키지 관리는 npm workspaces와 uv workspace를 사용한다.
+- 설치와 사용자 설명의 원본은 [설치 안내](../docs/installation.md)와 [사용 안내](../docs/usage.md)이다. README는 이 두 문서의 진입점으로 유지한다.
 
-- 프로젝트명: `doc2audio`
-- 현재 단계: 브라우저 실행 웹 v0.3 + 선택적 로컬 엔진·CLI·API 모노레포
-- 목적: 사용자가 지정한 PDF·DOCX·DOC·UTF-8 TXT 파일을 자연스러운 한국어 MP3로 변환
-- 애플리케이션 요구사항: 무료 공개 음성 모델, 한국어 기본 화자, 로컬 처리, 긴 문서 분할과 이어하기
-- 웹 기술 스택: React 19, Material UI 9, Vite 7, TypeScript, ONNX Runtime Web 1.29 WASM, IndexedDB, Web Locks, Service Worker, PDF.js, Mammoth/CFB, Tesseract 7, LAME/SoundTouch
-- 선택적 로컬 런타임: Python 3.12, Apple Silicon macOS, MLX-Audio 0.5.3, Supertonic 1.3.1 / ONNX Runtime, FastAPI, SQLite, PyMuPDF, python-docx, macOS Vision OCR, ffmpeg
-- 패키지 관리자: Python: uv (`uv.lock`), 웹: npm workspaces (`package-lock.json`)
-- 주요 소스 경로: `packages/engine/`, `apps/cli/`, `apps/server/`, `apps/web/`, `tests/`
-- 외부 서비스·필수 환경변수: 최초 공개 모델 다운로드에 Hugging Face 사용, 필수 환경변수·API 키 없음
+## 실행과 검증
 
-## 실행·검증 명령
+프로젝트 루트에서 실행한다. 지원하는 Node 버전은 `package.json`, Python·의존성은 각 `pyproject.toml`과 잠금 파일을 기준으로 확인한다.
 
-명령은 프로젝트 루트에서 실행한다.
-
-| 용도 | 명령 또는 상태 |
+| 용도 | 명령 |
 | --- | --- |
-| AI 환경 점검 | `python3 scripts/ai-env.py check` |
-| 누락된 공유 연결 생성 | `python3 scripts/ai-env.py setup` |
-| 의존성 설치 | `uv sync --locked` |
-| 모델 설치·환경 점검 | `uv run doc2audio download`, `uv run doc2audio doctor` |
-| 문서 변환 | `uv run doc2audio "/절대/경로/문서.pdf"` |
-| 본문 미리 확인 | `uv run doc2audio extract "/절대/경로/문서.pdf"` |
-| 브라우저 웹 | `npm ci`, `npm run build`, `npm run preview` (127.0.0.1:4173), Node.js 22.20+(22.x) / 24.12+(24.x) / 26+ |
-| 웹 정적 배포 | `apps/web/dist/` 전체를 HTTPS 정적 호스팅에 제공. 세부 설정은 `docs/browser-runtime.md` |
-| 선택적 로컬 서버 | `uv run doc2audio-server`, `http://127.0.0.1:8010/?runtime=local` |
-| 웹 개발 서버 | `npm run dev` (127.0.0.1:5173), 기본 모드에는 API 서버 불필요 |
-| 웹 타입 검사·빌드 | `npm run check`, `npm run build` |
-| 웹·오프라인 캐시 테스트·포맷 | `npm run test:web`, `npm run format:check` |
-| lint·format | `uv run ruff check .`, `uv run ruff format --check .` |
-| Python 타입 검사 | 별도 도구 미구성 |
-| 단위·통합 테스트 | `uv run pytest` |
-| 모델별 실제 검증 | `uv run python scripts/verify_models.py` (세 모델 설치 후, 캐시 재사용 금지) |
-| 서버 재시작·취소 검증 | `uv run python scripts/verify_server_runtime.py` (Supertonic 설치 후) |
-| 실제 모델 통합 검증 | `uv run python scripts/verify_runtime.py` (모델 다운로드 후 실행) |
-| 빌드 | `uv build --all-packages` |
+| 공통 AI 환경 확인 | `python3 scripts/ai-env.py check` |
+| Python 의존성 설치 | `uv sync --locked` |
+| 모델 다운로드·환경 확인 | `uv run doc2audio download`, `uv run doc2audio doctor` |
+| 문서 변환 | `uv run doc2audio "문서.pdf" -o "결과.mp3"` |
+| 로컬 웹 서버 | `uv run doc2audio-server` → `http://127.0.0.1:8010/?runtime=local` |
+| 웹 의존성·빌드 | `npm ci`, `npm run build` |
+| 웹 개발·미리보기 | `npm run dev` (5173), `npm run preview` (4173) |
+| 웹 검사 | `npm run check`, `npm run format:check`, `npm run test:web` |
+| Python 검사 | `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest` |
+| Python 패키지 빌드 | `uv build --all-packages` |
+| 실제 모델·서버 검증 | `scripts/verify_models.py`, `scripts/verify_server_runtime.py`, `scripts/verify_runtime.py`를 필요한 범위에서 `uv run python`으로 실행 |
 
-## 프로젝트별 규칙·결정
+## 유지할 동작
 
-- 기본 웹 모델은 Supertonic 3 (10개 목소리, 31개 언어, 한국어 F1 기본)이다. 고정 리비전·18개 파일 크기·SHA256은 `apps/web/src/browser/model-manifest.json`에 둔다.
-- CLI·로컬 서버의 기본 모델은 Qwen3-TTS 1.7B CustomVoice MLX 8bit, 한국어 화자는 Sohee이다. 모델 ID·리비전·필수 파일은 `packages/engine/src/doc2audio/catalog.json`에 고정한다. Qwen 0.6B와 Supertonic 3도 지원한다.
-- 모델 선택은 `docs/model-research.md`, 실제 검증은 `docs/validation.md`와 후속 전체 점검 `docs/five-pass-audit.md`, 추가 오류 점검 `docs/followup-audit.md`를 근거로 판단한다.
-- 초보자 설치·일상 사용은 `README.md`, 모델 사용법은 `docs/model-usage.md`, 내부 호출과 처리 구조는 `docs/architecture.md`에서 설명한다. 사용 문서는 HTML 없이 순수 Markdown으로 유지한다.
-- `.models/`, `.doc2audio/`, `output/`, `input/`은 로컬 전용이며 Git에 포함하지 않는다.
-- 테스트용 합성 톤은 자동 테스트에서만 사용한다. 실제 TTS 검증 및 사용자 변환에 대체 음성·mock 성공을 사용하지 않는다.
-- 문서 원본을 수정하지 않으며, 기존 출력 파일 교체는 `--overwrite`로 명시한다.
-- 채팅으로 문서 경로를 받으면 이 CLI를 실제 실행하고 결과 MP3 경로를 전달한다.
-
-- 기본 웹은 모델·원문·작업·PCM·MP3를 같은 출처·브라우저 프로필의 IndexedDB `doc2audio-browser`에 저장한다. Web Locks로 한 탭만 실행하고 완료 구간을 검증해 자동 이어간다. 창을 닫은 동안 계산은 멈춘다. 명시적 일시정지·실패·취소는 수동 재개한다.
-- 브라우저 화면·OCR·WASM 실행 파일은 Service Worker로 캐시한다. 첫 화면 준비와 모델 다운로드 완료 후 오프라인 실행 가능. 기본 웹에는 Python API로 자동 전송하는 fallback이 없다.
-- 선택적 로컬 서버 작업은 `.doc2audio/jobs.sqlite3`와 `.doc2audio/jobs/`에 저장한다. `DOC2AUDIO_DATA_DIR`, `DOC2AUDIO_MODELS_DIR`로 변경 가능하다.
-- 로컬 Python 서버는 127.0.0.1에만 바인딩한다. 모델 추론은 별도 프로세스의 단일 대기열에서 실행하며 외부 요청은 모델 설치 시에만 허용한다.
-- 웹 UI는 Material 관리자 화면 구성을 사용한다. 기본/고급 음성 옵션, 메뉴 이동 중 입력 보존, 작은 화면의 1열 배치와 모바일 48px 조작 영역을 유지한다. 디자인 근거와 UI 검증은 `docs/ui-refresh.md`에 기록한다.
-
-- 목소리 비교용 한국어 MP3 28개(Supertonic 10, Qwen 두 모델 각 9)는 `apps/web/public/voice-samples/`의 제품용 합성 음성 자산이다. 생성 옵션·리비전·SHA는 manifest에 기록하며 `uv run python scripts/generate_voice_samples.py --overwrite`로 재생성한다. 모델 다운로드 없이 재생하고, 선택·화면 변경 시 정지한다. Qwen은 기존 Apple Silicon 로컬 서버 경로로 안내한다.
-
-- 사이트의 `#help` 도움말은 모델·저장소 초기화와 무관하게 접근할 수 있다. 문서 선택 화면과 도움말은 브라우저 내부 처리와 내 PC의 Python 서버 전달을 실행 모드에 맞게 설명한다. 파일을 선택하기만 한 초안은 창을 닫으면 사라지며, 변환 시작 후 등록한 원문·설정부터 저장한다.
-- README용 실제 화면은 `docs/assets/screenshots/web/`, 편집 가능한 처리 도식은 `docs/assets/diagrams/`에서 관리한다. 갱신·출처 규칙은 `docs/assets/README.md`, 기존 CLI·서버·모델 폴더 지정은 `docs/local-usage.md`를 따른다.
-- 배포 웹의 사용자 지정 폴더 모델 저장 가능성은 `docs/model-storage.md`에 공식 근거와 함께 조사했다. File System Access를 사용한 추가 개발안이며 현재는 IndexedDB 저장을 유지한다. OPFS를 사용자 지정 폴더로 설명하지 않는다.
+- 원문을 수정하지 않는다. 기존 출력 교체는 `--overwrite`를 명시한다. 실제 변환에 테스트 톤이나 가짜 성공을 사용하지 않는다.
+- 기본 웹은 문서·음성을 외부 서버에 전송하지 않는다. 실행 파일은 서비스 워커 캐시, 모델·등록한 작업은 IndexedDB에 보관한다. 창을 닫으면 계산이 멈추며 같은 사이트·프로필에서 완료 구간을 재사용한다.
+- 로컬 서버는 `127.0.0.1`에 바인딩한다. 웹과 로컬 서버 사이에 문서·작업을 자동 이전하지 않는다.
+- 모델 명세는 `apps/web/src/browser/model-manifest.json`과 `packages/engine/src/doc2audio/catalog.json`을 기준으로 한다. 브라우저의 일반 모델 폴더 지정 기능은 현재 없다.
+- `.models/`, `.doc2audio/`, `input/`, `output/`은 사용자 로컬 데이터이며 Git에서 제외한다.
+- 제품용 합성 음성은 `apps/web/public/voice-samples/`에 둔다. 모델·화자·옵션·리비전·해시는 `manifest.json`에 기록한다. 배포 라이선스 고지를 보존한다.
+- 사용자 문서는 설치와 사용에 필요한 내용만 유지한다. 과거 조사·설계·검증 보고서와 완료된 작업 기록을 별도 문서로 쌓지 않는다.

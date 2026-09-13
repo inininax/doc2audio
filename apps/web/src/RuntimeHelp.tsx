@@ -5,7 +5,7 @@ import { browserMode } from "./api";
 
 const localUrl = "http://127.0.0.1:8010/?runtime=local#new";
 const setupUrl =
-  "https://github.com/inininax/doc2audio/blob/main/docs/web-usage.md#선택적-로컬-서버-모드";
+  "https://github.com/inininax/doc2audio/blob/main/docs/installation.md";
 
 export default function RuntimeHelp({
   compact = false,
